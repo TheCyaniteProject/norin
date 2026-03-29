@@ -1,0 +1,16 @@
+{
+  "name": "norin-reader",
+  "version": "1.0.0",
+  "description": "Simple reading app in NodeJS + Electron",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron ."
+  },
+  "keywords": ["electron","reader","text"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^26.0.0"
+  }
+}

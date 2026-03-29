@@ -1,0 +1,502 @@
+{
+    "replacements": {
+        "’": "'",
+        "“": "\"",
+        "”": "\"",
+        "—": "-",
+        "00devcomment_case": "Phonetic rules below are lowercase-only so uppercase can pass through mostly unchanged.",
+        "im_contraction": {
+            "regex": "\\bi'm\\b",
+            "replace": "i am"
+        },
+        "ive_contraction": {
+            "regex": "\\bi've\\b",
+            "replace": "i have"
+        },
+        "ill_contraction": {
+            "regex": "\\bi'll\\b",
+            "replace": "i will"
+        },
+        "and_word": {
+            "regex": "\\b[Aa]nd\\b",
+            "replace": "y"
+        },
+        "he_word": {
+            "regex": "\\bhe\\b",
+            "replace": "hee"
+        },
+        "she_word": {
+            "regex": "\\b[Ss]he\\b",
+            "replace": "shee"
+        },
+        "me_word": {
+            "regex": "\\b[Mm]e\\b",
+            "replace": "mee"
+        },
+        "we_word": {
+            "regex": "\\b[Ww]e\\b",
+            "replace": "wee"
+        },
+        "be_word": {
+            "regex": "\\b[Bb]e\\b",
+            "replace": "bee"
+        },
+        "one_word": {
+            "regex": "\\b[Oo]ne\\b",
+            "replace": "won"
+        },
+        "once_word": {
+            "regex": "\\b[Oo]nce\\b",
+            "replace": "wuns"
+        },
+        "two_word": {
+            "regex": "\\b[Tt]wo\\b",
+            "replace": "too"
+        },
+        "of_word": {
+            "regex": "\\b[Oo]f\\b",
+            "replace": "uv"
+        },
+        "done_word": {
+            "regex": "\\b[Dd]one\\b",
+            "replace": "dun"
+        },
+        "some_word": {
+            "regex": "\\b[Ss]ome\\b",
+            "replace": "sum"
+        },
+        "come_word": {
+            "regex": "\\b[Cc]ome\\b",
+            "replace": "kum"
+        },
+        "from_word": {
+            "regex": "\\b[Ff]rom\\b",
+            "replace": "frum"
+        },
+        "people_word": {
+            "regex": "\\b[Pp]eople\\b",
+            "replace": "peepul"
+        },
+        "woman_word": {
+            "regex": "\\b[Ww]oman\\b",
+            "replace": "wuman"
+        },
+        "could_word": {
+            "regex": "\\b[Cc]ould\\b",
+            "replace": "kud"
+        },
+        "would_word": {
+            "regex": "\\b[Ww]ould\\b",
+            "replace": "wud"
+        },
+        "should_word": {
+            "regex": "\\b[Ss]hould\\b",
+            "replace": "shud"
+        },
+        "young_word": {
+            "regex": "\\b[Yy]oung\\b",
+            "replace": "yung"
+        },
+        "touch_word": {
+            "regex": "\\b[Tt]ouch\\b",
+            "replace": "tuch"
+        },
+        "blood_word": {
+            "regex": "\\b[Bb]lood\\b",
+            "replace": "blud"
+        },
+        "great_word": {
+            "regex": "\\b[Gg]reat\\b",
+            "replace": "grait"
+        },
+        "break_word": {
+            "regex": "\\b[Bb]reak\\b",
+            "replace": "braik"
+        },
+        "steak_word": {
+            "regex": "\\b[Ss]teak\\b",
+            "replace": "staik"
+        },
+        "who_word": {
+            "regex": "\\b[Ww]ho\\b",
+            "replace": "hoo"
+        },
+        "whole_word": {
+            "regex": "\\b[Ww]hole\\b",
+            "replace": "hol"
+        },
+        "through_word": {
+            "regex": "\\b[Tt]hrough\\b",
+            "replace": "throo"
+        },
+        "though_word": {
+            "regex": "\\b[Tt]hough\\b",
+            "replace": "tho"
+        },
+        "thought_word": {
+            "regex": "\\b[Tt]hought\\b",
+            "replace": "thaut"
+        },
+        "bought_word": {
+            "regex": "\\b[Bb]ought\\b",
+            "replace": "baut"
+        },
+        "rough_word": {
+            "regex": "\\b[Rr]ough\\b",
+            "replace": "ruf"
+        },
+        "tough_word": {
+            "regex": "\\b[Tt]ough\\b",
+            "replace": "tuf"
+        },
+        "enough_word": {
+            "regex": "\\b[Ee]nough\\b",
+            "replace": "enuf"
+        },
+        "cough_word": {
+            "regex": "\\b[Cc]ough\\b",
+            "replace": "kof"
+        },
+        "bough_word": {
+            "regex": "\\b[Bb]ough\\b",
+            "replace": "bau"
+        },
+        "laugh_word": {
+            "regex": "\\b[Ll]augh\\b",
+            "replace": "laf"
+        },
+        "laughing_word": {
+            "regex": "\\b[Ll]aughing\\b",
+            "replace": "lafing"
+        },
+        "laughter_word": {
+            "regex": "\\b[Ll]aughter\\b",
+            "replace": "lafter"
+        },
+        "sch": {
+            "regex": {
+                "[Ss]ch": "sk",
+                "SCH": "SK"
+            }
+        },
+        "tch": {
+            "regex": {
+                "[Tt][Cc]h": "ch",
+                "TCH": "CH"
+            }
+        },
+        "dge": {
+            "regex": "dge",
+            "replace": "j"
+        },
+        "aigh": {
+            "regex": "aigh",
+            "replace": "ai"
+        },
+        "eigh": {
+            "regex": "eigh",
+            "replace": "ai"
+        },
+        "igh": {
+            "regex": "igh",
+            "replace": "ai"
+        },
+        "augh": {
+            "regex": "augh",
+            "replace": "au"
+        },
+        "tion": {
+            "regex": "tion",
+            "replace": "shon"
+        },
+        "sion": {
+            "regex": "sion",
+            "replace": "shon"
+        },
+        "tial": {
+            "regex": "tial",
+            "replace": "shal"
+        },
+        "cial": {
+            "regex": "cial",
+            "replace": "shal"
+        },
+        "tian": {
+            "regex": "tian\\b",
+            "replace": "shan"
+        },
+        "cian": {
+            "regex": "cian\\b",
+            "replace": "shan"
+        },
+        "oar": {
+            "regex": "oar",
+            "replace": "or"
+        },
+        "rea": {
+            "regex": "[Rr]ea",
+            "replace": "ree"
+        },
+        "wr": {
+            "regex": "\\bwr",
+            "replace": "r"
+        },
+        "kn": {
+            "regex": "\\bkn",
+            "replace": "n"
+        },
+        "gn": {
+            "regex": "\\bgn",
+            "replace": "n"
+        },
+        "ps": {
+            "regex": "\\bps",
+            "replace": "s"
+        },
+        "pn": {
+            "regex": "\\bpn",
+            "replace": "n"
+        },
+        "pt": {
+            "regex": "\\bpt",
+            "replace": "t"
+        },
+        "rh": {
+            "regex": "\\brh",
+            "replace": "r"
+        },
+        "mb_final": {
+            "regex": "\\bmb(?=[^a-z]|$)",
+            "replace": "m"
+        },
+        "qu": {
+            "regex": "[Qq]u",
+            "replace": "kw"
+        },
+        "q": {
+            "regex": {
+                "q": "k",
+                "Q": "K"
+            }
+        },
+        "ph": {
+            "regex": {
+                "[Pp]h": "f",
+                "PH": "F"
+            }
+        },
+        "air": {
+            "regex": {
+                "eir": "air",
+                "(th)ere(?=[^a-z]|$)": "air",
+                "(wh)ere(?=[^a-z]|$)": "air",
+                "([bwp])ear(?=[^a-z]|$)": "air",
+                "(?<=[^aeiou])are(?=[^a-z]|$)": "air"
+            }
+        },
+        "wh": {
+            "regex": "[Ww]h",
+            "replace": "w"
+        },
+        "ck": {
+            "regex": {
+                "[Cc]k": "k",
+                "CK": "kk"
+            }
+        },
+        "sc": {
+            "regex": {
+                "sc(?=[eiy])": "s",
+                "sc": "sk",
+                "[Ss]c(?=[eiy])": "s",
+                "[Ss]c": "sk",
+                "SC(?=[eiy])": "S",
+                "SC": "SK"
+            }
+        },
+        "cc": {
+            "regex": {
+                "[Cc]c(?=[eiy])": "ks",
+                "[Cc]c": "k",
+                "CC(?=[eiy])": "KS",
+                "CC": "KK"
+            }
+        },
+        "dg": {
+            "regex": "dg(?=[eiy])",
+            "replace": "j"
+        },
+        "c": {
+            "regex": {
+                "c(?=[eiy])": "s",
+                "c(?![heiy])": "k",
+                "C(?=[eiy])": "S",
+                "C(?![heiy])": "K"
+            }
+        },
+        "gh_before_t_silent": {
+            "regex": "(?<=[aeiou])gh(?=t)",
+            "replace": ""
+        },
+        "gh_final_silent": {
+            "regex": "(?<=[aeiou])gh(?=[^a-z]|$)",
+            "replace": ""
+        },
+        "x_initial": {
+            "regex": "\\bx",
+            "replace": "z"
+        },
+        "x_medial": {
+            "regex": "(?<=[aeiou])x(?=[aeiou])",
+            "replace": "gz"
+        },
+        "x_default": {
+            "regex": "x",
+            "replace": "ks"
+        },
+        "ll": "l",
+        "tt": "t",
+        "ff": "f",
+        "ss": "s",
+        "bb": "b",
+        "dd": "d",
+        "gg": "g",
+        "mm": "m",
+        "nn": "n",
+        "pp": "p",
+        "rr": "r",
+        "final_y": {
+            "regex": "(?<=[a-z]{2})y(?=[^a-z]|$)",
+            "replace": "i"
+        }
+    },
+    "a": {
+        "svg": "/home/kieee/dev/norin/glyphs/a.svg",
+        "mark": "/home/kieee/dev/norin/glyphs/a_l.svg",
+        "scale": 1
+    },
+    "e": {
+        "svg": "/home/kieee/dev/norin/glyphs/e.svg",
+        "mark": "/home/kieee/dev/norin/glyphs/e_l.svg",
+        "scale": 1
+    },
+    "i": {
+        "svg": "/home/kieee/dev/norin/glyphs/i.svg",
+        "mark": "/home/kieee/dev/norin/glyphs/i_l.svg",
+        "scale": 1
+    },
+    "o": {
+        "svg": "/home/kieee/dev/norin/glyphs/o.svg",
+        "mark": "/home/kieee/dev/norin/glyphs/o_l.svg",
+        "scale": 1
+    },
+    "u": {
+        "svg": "/home/kieee/dev/norin/glyphs/u.svg",
+        "mark": "/home/kieee/dev/norin/glyphs/u_l.svg",
+        "scale": 1
+    },
+    "b": {
+        "svg": "/home/kieee/dev/norin/glyphs/b.svg",
+        "scale": 1
+    },
+    "k": {
+        "svg": "/home/kieee/dev/norin/glyphs/k.svg",
+        "scale": 1
+    },
+    "d": {
+        "svg": "/home/kieee/dev/norin/glyphs/d.svg",
+        "scale": 1
+    },
+    "f": {
+        "svg": "/home/kieee/dev/norin/glyphs/f.svg",
+        "scale": 1
+    },
+    "g": {
+        "svg": "/home/kieee/dev/norin/glyphs/g.svg",
+        "scale": 1
+    },
+    "h": {
+        "svg": "/home/kieee/dev/norin/glyphs/h.svg",
+        "scale": 1
+    },
+    "j": {
+        "svg": "/home/kieee/dev/norin/glyphs/j.svg",
+        "scale": 1
+    },
+    "l": {
+        "svg": "/home/kieee/dev/norin/glyphs/l.svg",
+        "scale": 1
+    },
+    "m": {
+        "svg": "/home/kieee/dev/norin/glyphs/m.svg",
+        "scale": 1
+    },
+    "n": {
+        "svg": "/home/kieee/dev/norin/glyphs/n.svg",
+        "scale": 1
+    },
+    "p": {
+        "svg": "/home/kieee/dev/norin/glyphs/p.svg",
+        "scale": 1
+    },
+    "r": {
+        "svg": "/home/kieee/dev/norin/glyphs/r.svg",
+        "scale": 1
+    },
+    "s": {
+        "svg": "/home/kieee/dev/norin/glyphs/s.svg",
+        "scale": 1
+    },
+    "t": {
+        "svg": "/home/kieee/dev/norin/glyphs/t.svg",
+        "scale": 1
+    },
+    "v": {
+        "svg": "/home/kieee/dev/norin/glyphs/v.svg",
+        "scale": 1
+    },
+    "w": {
+        "svg": "/home/kieee/dev/norin/glyphs/w.svg",
+        "scale": 1
+    },
+    "y": {
+        "svg": "/home/kieee/dev/norin/glyphs/y.svg",
+        "scale": 1
+    },
+    "z": {
+        "svg": "/home/kieee/dev/norin/glyphs/z.svg",
+        "scale": 1
+    },
+    "th": {
+        "svg": "/home/kieee/dev/norin/glyphs/th.svg",
+        "scale": 1
+    },
+    "sh": {
+        "svg": "/home/kieee/dev/norin/glyphs/sh.svg",
+        "scale": 1
+    },
+    "ch": {
+        "svg": "/home/kieee/dev/norin/glyphs/ch.svg",
+        "scale": 1
+    },
+    "ng": {
+        "svg": "/home/kieee/dev/norin/glyphs/ng.svg",
+        "scale": 1
+    },
+    "air": {
+        "svg": "/home/kieee/dev/norin/glyphs/air.svg",
+        "scale": 1
+    },
+    "au": {
+        "svg": "/home/kieee/dev/norin/glyphs/au.svg",
+        "scale": 1
+    },
+    "ee": {
+        "svg": "/home/kieee/dev/norin/glyphs/ee.svg",
+        "scale": 1
+    },
+    "oo": {
+        "svg": "/home/kieee/dev/norin/glyphs/oo.svg",
+        "scale": 1
+    }
+}
