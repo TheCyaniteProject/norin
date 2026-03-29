@@ -371,132 +371,132 @@
         }
     },
     "a": {
-        "svg": "/home/kieee/dev/norin/glyphs/a.svg",
-        "mark": "/home/kieee/dev/norin/glyphs/a_l.svg",
+        "svg": "../norin-font/glyphs/a.svg",
+        "mark": "../norin-font/glyphs/a_l.svg",
         "scale": 1
     },
     "e": {
-        "svg": "/home/kieee/dev/norin/glyphs/e.svg",
-        "mark": "/home/kieee/dev/norin/glyphs/e_l.svg",
+        "svg": "../norin-font/glyphs/e.svg",
+        "mark": "../norin-font/glyphs/e_l.svg",
         "scale": 1
     },
     "i": {
-        "svg": "/home/kieee/dev/norin/glyphs/i.svg",
-        "mark": "/home/kieee/dev/norin/glyphs/i_l.svg",
+        "svg": "../norin-font/glyphs/i.svg",
+        "mark": "../norin-font/glyphs/i_l.svg",
         "scale": 1
     },
     "o": {
-        "svg": "/home/kieee/dev/norin/glyphs/o.svg",
-        "mark": "/home/kieee/dev/norin/glyphs/o_l.svg",
+        "svg": "../norin-font/glyphs/o.svg",
+        "mark": "../norin-font/glyphs/o_l.svg",
         "scale": 1
     },
     "u": {
-        "svg": "/home/kieee/dev/norin/glyphs/u.svg",
-        "mark": "/home/kieee/dev/norin/glyphs/u_l.svg",
+        "svg": "../norin-font/glyphs/u.svg",
+        "mark": "../norin-font/glyphs/u_l.svg",
         "scale": 1
     },
     "b": {
-        "svg": "/home/kieee/dev/norin/glyphs/b.svg",
+        "svg": "../norin-font/glyphs/b.svg",
         "scale": 1
     },
     "k": {
-        "svg": "/home/kieee/dev/norin/glyphs/k.svg",
+        "svg": "../norin-font/glyphs/k.svg",
         "scale": 1
     },
     "d": {
-        "svg": "/home/kieee/dev/norin/glyphs/d.svg",
+        "svg": "../norin-font/glyphs/d.svg",
         "scale": 1
     },
     "f": {
-        "svg": "/home/kieee/dev/norin/glyphs/f.svg",
+        "svg": "../norin-font/glyphs/f.svg",
         "scale": 1
     },
     "g": {
-        "svg": "/home/kieee/dev/norin/glyphs/g.svg",
+        "svg": "../norin-font/glyphs/g.svg",
         "scale": 1
     },
     "h": {
-        "svg": "/home/kieee/dev/norin/glyphs/h.svg",
+        "svg": "../norin-font/glyphs/h.svg",
         "scale": 1
     },
     "j": {
-        "svg": "/home/kieee/dev/norin/glyphs/j.svg",
+        "svg": "../norin-font/glyphs/j.svg",
         "scale": 1
     },
     "l": {
-        "svg": "/home/kieee/dev/norin/glyphs/l.svg",
+        "svg": "../norin-font/glyphs/l.svg",
         "scale": 1
     },
     "m": {
-        "svg": "/home/kieee/dev/norin/glyphs/m.svg",
+        "svg": "../norin-font/glyphs/m.svg",
         "scale": 1
     },
     "n": {
-        "svg": "/home/kieee/dev/norin/glyphs/n.svg",
+        "svg": "../norin-font/glyphs/n.svg",
         "scale": 1
     },
     "p": {
-        "svg": "/home/kieee/dev/norin/glyphs/p.svg",
+        "svg": "../norin-font/glyphs/p.svg",
         "scale": 1
     },
     "r": {
-        "svg": "/home/kieee/dev/norin/glyphs/r.svg",
+        "svg": "../norin-font/glyphs/r.svg",
         "scale": 1
     },
     "s": {
-        "svg": "/home/kieee/dev/norin/glyphs/s.svg",
+        "svg": "../norin-font/glyphs/s.svg",
         "scale": 1
     },
     "t": {
-        "svg": "/home/kieee/dev/norin/glyphs/t.svg",
+        "svg": "../norin-font/glyphs/t.svg",
         "scale": 1
     },
     "v": {
-        "svg": "/home/kieee/dev/norin/glyphs/v.svg",
+        "svg": "../norin-font/glyphs/v.svg",
         "scale": 1
     },
     "w": {
-        "svg": "/home/kieee/dev/norin/glyphs/w.svg",
+        "svg": "../norin-font/glyphs/w.svg",
         "scale": 1
     },
     "y": {
-        "svg": "/home/kieee/dev/norin/glyphs/y.svg",
+        "svg": "../norin-font/glyphs/y.svg",
         "scale": 1
     },
     "z": {
-        "svg": "/home/kieee/dev/norin/glyphs/z.svg",
+        "svg": "../norin-font/glyphs/z.svg",
         "scale": 1
     },
     "th": {
-        "svg": "/home/kieee/dev/norin/glyphs/th.svg",
+        "svg": "../norin-font/glyphs/th.svg",
         "scale": 1
     },
     "sh": {
-        "svg": "/home/kieee/dev/norin/glyphs/sh.svg",
+        "svg": "../norin-font/glyphs/sh.svg",
         "scale": 1
     },
     "ch": {
-        "svg": "/home/kieee/dev/norin/glyphs/ch.svg",
+        "svg": "../norin-font/glyphs/ch.svg",
         "scale": 1
     },
     "ng": {
-        "svg": "/home/kieee/dev/norin/glyphs/ng.svg",
+        "svg": "../norin-font/glyphs/ng.svg",
         "scale": 1
     },
     "air": {
-        "svg": "/home/kieee/dev/norin/glyphs/air.svg",
+        "svg": "../norin-font/glyphs/air.svg",
         "scale": 1
     },
     "au": {
-        "svg": "/home/kieee/dev/norin/glyphs/au.svg",
+        "svg": "../norin-font/glyphs/au.svg",
         "scale": 1
     },
     "ee": {
-        "svg": "/home/kieee/dev/norin/glyphs/ee.svg",
+        "svg": "../norin-font/glyphs/ee.svg",
         "scale": 1
     },
     "oo": {
-        "svg": "/home/kieee/dev/norin/glyphs/oo.svg",
+        "svg": "../norin-font/glyphs/oo.svg",
         "scale": 1
     }
 }
