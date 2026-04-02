@@ -61,26 +61,26 @@ ipcMain.handle('open-file-dialog', async () => {
   }
 });
 
-ipcMain.handle('export-pdf', async () => {
-  if (!mainWindow) return { canceled: true };
+ipcMain.handle('export-pdf', async () => { // This will no-longer work since we're moving from Electron to http-server, but I'll keep it here for now in case we want to add it back later
+  // if (!mainWindow) return { canceled: true };
 
-  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-    title: 'Export to PDF',
-    defaultPath: 'export.pdf',
-    filters: [{ name: 'PDF', extensions: ['pdf'] }]
-  });
+  // const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+  //   title: 'Export to PDF',
+  //   defaultPath: 'export.pdf',
+  //   filters: [{ name: 'PDF', extensions: ['pdf'] }]
+  // });
 
-  if (canceled || !filePath) return { canceled: true };
+  // if (canceled || !filePath) return { canceled: true };
 
-  try {
-    // ensure window contents are up-to-date before printing
-    const pdfOptions = { printBackground: true };
-    const data = await mainWindow.webContents.printToPDF(pdfOptions);
-    await fs.writeFile(filePath, data);
-    return { canceled: false, filePath };
-  } catch (err) {
-    return { canceled: false, error: err.message };
-  }
+  // try {
+  //   // ensure window contents are up-to-date before printing
+  //   const pdfOptions = { printBackground: true };
+  //   const data = await mainWindow.webContents.printToPDF(pdfOptions);
+  //   await fs.writeFile(filePath, data);
+  //   return { canceled: false, filePath };
+  // } catch (err) {
+  //   return { canceled: false, error: err.message };
+  // }
 });
 
 ipcMain.handle('open-phonetic-map-dialog', async () => {
