@@ -288,9 +288,9 @@
         "air": {
             "regex": {
                 "eir": "air",
-                "(th)ere(?=[^a-z]|$)": "air",
-                "(wh)ere(?=[^a-z]|$)": "air",
-                "([bwp])ear(?=[^a-z]|$)": "air",
+                "(th)ere(?=[^a-z]|$)": "$1air",
+                "(wh)ere(?=[^a-z]|$)": "$1air",
+                "([bwp])ear(?=[^a-z]|$)": "$1air",
                 "(?<=[^aeiou])are(?=[^a-z]|$)": "air"
             }
         },

@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Norin Reader</title>
     <!-- Configurable endpoints for server and glyphs (override content in deployment) -->
-    <meta name="server-origin" content="http://127.0.0.1:8080" />
+    <meta name="server-origin" content="http://127.0.0.1:80" />
     <meta name="glyph-base" content="https://raw.githubusercontent.com/TheCyaniteProject/norin/25ac4a6a53d50d3a44acd492020c272436454b09/norin-font/glyphs" />
     <style>
         :root {
@@ -91,7 +91,8 @@
 
         /* Content panels sit under the tabs so give them a border that connects visually */
         #readerTab,
-        #notepadTab {
+        #notepadTab,
+        #chatTab {
             border: 1px solid var(--border);
             border-top: none;
             border-radius: 0 6px 6px 6px;
@@ -546,6 +547,7 @@
     <div class="tabs">
         <button id="tabReader" class="tab active">Reader</button>
         <button id="tabNotepad" class="tab">Notepad</button>
+        <button id="tabChat" class="tab">Chat</button>
         <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
             <label class="switch">
                 <input type="checkbox" id="toggleDark">
@@ -599,6 +601,23 @@
                     <div id="notepadOutput"
                         style="flex:1; min-height:0; border:1px solid var(--border); padding:12px; background:var(--panel-bg); color:var(--text); overflow-y:scroll;">
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="chatTab" style="display:none; padding:12px;">
+        <div style="display:flex; flex-direction:column; gap:12px; height: calc(100vh - 84px);">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div style="font-weight:600;">Chat</div>
+                <div id="chatStatus" style="margin-left:auto; color: var(--muted);"></div>
+            </div>
+            <div style="flex:1; display:flex; flex-direction:column; gap:12px; min-height:0;">
+                <div id="chatTranscript" class="content-inner" style="flex:1; overflow-y:auto;"></div>
+                <div style="display:flex; gap:8px; align-items:flex-start;">
+                    <div id="chatInput" contenteditable="true"
+                        style="flex:1; min-height:3.2em; max-height:10em; overflow-y:auto; border:1px solid var(--border); padding:10px; background:var(--panel-bg); color:var(--text); outline:none;">
+                    </div>
+                    <button id="chatSend">Send</button>
                 </div>
             </div>
         </div>

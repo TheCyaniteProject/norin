@@ -12,12 +12,26 @@ const exportPdfBtn = document.getElementById('exportPdfBtn');
 const toggleDark = document.getElementById('toggleDark');
 const tabReader = document.getElementById('tabReader');
 const tabNotepad = document.getElementById('tabNotepad');
+const tabChat = document.getElementById('tabChat');
 const readerTab = document.getElementById('readerTab');
 const notepadTab = document.getElementById('notepadTab');
+const chatTab = document.getElementById('chatTab');
 const notepadInput = document.getElementById('notepadInput');
 const notepadOutput = document.getElementById('notepadOutput');
 const notepadScale = document.getElementById('notepadScale');
 const notepadScaleVal = document.getElementById('notepadScaleVal');
+
+// Chat elements
+const chatTranscript = document.getElementById('chatTranscript');
+const chatInput = document.getElementById('chatInput');
+const chatSend = document.getElementById('chatSend');
+const chatStatus = document.getElementById('chatStatus');
+
+// Chat state
+let chatSending = false;
+let chatAbortController = null;
+let chatTranscriptData = []; // { id, role: 'user'|'assistant', latin }
+let chatMsgSeq = 0;
 
 // Loading overlay elements
 const loadingOverlay = document.getElementById('loadingOverlay');
@@ -642,6 +656,64 @@ function normalizeText(text) {
   return text;
 }
 
+// Segment text into normal and code (inline/backtick and fenced triple backticks)
+function segmentByBackticks(input) {
+  const out = [];
+  let i = 0;
+  const n = input.length;
+  while (i < n) {
+    const pos3 = input.indexOf('```', i);
+    const pos1 = input.indexOf('`', i);
+    let nextPos = -1;
+    let type = null;
+    if (pos3 !== -1 && (pos1 === -1 || pos3 <= pos1)) {
+      nextPos = pos3;
+      type = 'fence3';
+    } else if (pos1 !== -1) {
+      nextPos = pos1;
+      type = 'tick1';
+    }
+
+    if (nextPos === -1) {
+      out.push({ type: 'text', text: input.slice(i) });
+      break;
+    }
+
+    if (nextPos > i) {
+      out.push({ type: 'text', text: input.slice(i, nextPos) });
+    }
+
+    if (type === 'fence3') {
+      const end = input.indexOf('```', nextPos + 3);
+      if (end === -1) {
+        // unmatched: treat rest as code block
+        out.push({ type: 'code-block', text: input.slice(nextPos + 3) });
+        i = n;
+      } else {
+        const body = input.slice(nextPos + 3, end);
+        out.push({ type: 'code-block', text: body });
+        i = end + 3;
+      }
+      continue;
+    }
+
+    if (type === 'tick1') {
+      const end = input.indexOf('`', nextPos + 1);
+      if (end === -1) {
+        // unmatched: treat as literal
+        out.push({ type: 'text', text: '`' });
+        i = nextPos + 1;
+      } else {
+        const body = input.slice(nextPos + 1, end);
+        out.push({ type: 'code-inline', text: body });
+        i = end + 1;
+      }
+      continue;
+    }
+  }
+  return out;
+}
+
 // Render converted content into a given element (like content or notepadOutput)
 function renderInto(target, rawText, opts = {}) {
   if (!target) return;
@@ -654,128 +726,161 @@ function renderInto(target, rawText, opts = {}) {
     return;
   }
 
-  const normalized = normalizeText(rawText);
   const readerMode = Boolean(opts.readerMode);
 
-  target.innerHTML = '';
-  const parts = normalized.split(/(\s+)/);
-  for (const part of parts) {
-    if (!part) continue;
+  function renderMappedSegment(targetEl, text) {
+    const normalized = normalizeText(text);
+    const parts = normalized.split(/(\s+)/);
+    for (const part of parts) {
+      if (!part) continue;
 
-    if (/^\s+$/.test(part)) {
-      for (const ch of part) {
-        if (ch === '\n') {
-          target.appendChild(document.createElement('br'));
-        } else if (ch === ' ') {
-          const sp = document.createElement('span');
-          sp.className = 'space';
-          sp.innerHTML = '&nbsp;';
-          target.appendChild(sp);
-        } else {
-          const sp = document.createElement('span');
-          sp.className = 'space';
-          sp.textContent = ch;
-          target.appendChild(sp);
+      if (/^\s+$/.test(part)) {
+        for (const ch of part) {
+          if (ch === '\n') {
+            targetEl.appendChild(document.createElement('br'));
+          } else if (ch === ' ') {
+            const sp = document.createElement('span');
+            sp.className = 'space';
+            sp.innerHTML = '&nbsp;';
+            targetEl.appendChild(sp);
+          } else {
+            const sp = document.createElement('span');
+            sp.className = 'space';
+            sp.textContent = ch;
+            targetEl.appendChild(sp);
+          }
+        }
+        continue;
+      }
+
+      const tokens = [];
+      const isWordAllCaps = readerMode && (part === part.toUpperCase()) && /[A-Z]/.test(part);
+      for (let i = 0; i < part.length;) {
+        let matched = false;
+        for (const key of phoneticKeys) {
+          const substr = part.substr(i, key.length);
+          if (substr.toLowerCase() === key.toLowerCase()) {
+            const entry = phoneticMap[key];
+            if (entry && entry.mark) {
+              const prev = tokens[tokens.length - 1];
+              const prevIsPunct = !prev || /^[^\p{L}\p{N}]+$/u.test(prev.text);
+              const prevHasAccent = prev && prev.accents && prev.accents.length > 0;
+              const isVowelKey = key.length === 1 && /[aeiouy]/i.test(key);
+              const matchedIsUpper = substr === substr.toUpperCase() && /[A-Z]/.test(substr);
+              if (prev && !prevIsPunct && !prevHasAccent && !(readerMode && isVowelKey && matchedIsUpper)) {
+                prev.accents.push(entry.mark);
+                i += key.length;
+                matched = true;
+                break;
+              }
+            }
+            tokens.push({ text: key, entry: entry, accents: [] });
+            i += key.length;
+            matched = true;
+            break;
+          }
+        }
+
+        if (!matched) {
+          const ch = part[i];
+          const entry = phoneticMap && phoneticMap[ch] ? phoneticMap[ch] : null;
+          tokens.push({ text: ch, entry: entry, accents: [] });
+          i += 1;
         }
       }
+
+      const hasWordChars = /[\p{L}\p{N}]/u.test(part);
+      const hasMappedGlyph = tokens.some(t => Boolean(t.entry));
+
+      let output = targetEl;
+      if (hasWordChars || hasMappedGlyph) {
+        const wordWrapper = document.createElement('span');
+        wordWrapper.className = 'norin-word';
+        wordWrapper.dataset.latin = part;
+        wordWrapper.style.cursor = 'help';
+        targetEl.appendChild(wordWrapper);
+        output = wordWrapper;
+      }
+
+      const glyphBuffer = [];
+      const flushBufferAsSingles = () => {
+        for (const gt of glyphBuffer) output.appendChild(createGlyphNode(gt));
+        glyphBuffer.length = 0;
+      };
+
+      for (const tok of tokens) {
+        if (readerMode && isWordAllCaps) {
+          output.appendChild(createGlyphNode(tok));
+          continue;
+        }
+
+        const isGlyph = Boolean(tok.entry);
+        if (!isGlyph) {
+          if (glyphBuffer.length > 0) flushBufferAsSingles();
+          output.appendChild(createGlyphNode(tok));
+          continue;
+        }
+
+        glyphBuffer.push(tok);
+        if (glyphBuffer.length === 3) {
+          const block = document.createElement('span');
+          block.className = 'sinogram';
+
+          const t1 = createGlyphNode(glyphBuffer[0]);
+          t1.classList.add('sin-first');
+          block.appendChild(t1);
+
+          const t2 = createGlyphNode(glyphBuffer[1]);
+          t2.classList.add('sin-right');
+          block.appendChild(t2);
+
+          const t3 = createGlyphNode(glyphBuffer[2]);
+          t3.classList.add('sin-below');
+          block.appendChild(t3);
+
+          output.appendChild(block);
+          adjustStrokeForBlock(block);
+          glyphBuffer.length = 0;
+        }
+      }
+
+      if (glyphBuffer.length > 0) flushBufferAsSingles();
+    }
+  }
+
+  target.innerHTML = '';
+  const segments = segmentByBackticks(String(rawText || ''));
+  for (const seg of segments) {
+    if (!seg || typeof seg.text !== 'string') continue;
+    if (seg.type === 'text') {
+      renderMappedSegment(target, seg.text);
       continue;
     }
-
-    const tokens = [];
-    const isWordAllCaps = readerMode && (part === part.toUpperCase()) && /[A-Z]/.test(part);
-    for (let i = 0; i < part.length;) {
-      let matched = false;
-      for (const key of phoneticKeys) {
-        const substr = part.substr(i, key.length);
-        if (substr.toLowerCase() === key.toLowerCase()) {
-          const entry = phoneticMap[key];
-          if (entry && entry.mark) {
-            const prev = tokens[tokens.length - 1];
-            const prevIsPunct = !prev || /^[^\p{L}\p{N}]+$/u.test(prev.text);
-            const prevHasAccent = prev && prev.accents && prev.accents.length > 0;
-            // determine if key is a vowel and the matched substring is uppercase
-            const isVowelKey = key.length === 1 && /[aeiouy]/i.test(key);
-            const matchedIsUpper = substr === substr.toUpperCase() && /[A-Z]/.test(substr);
-            // in readerMode, skip converting a capitalized vowel into an accent
-            if (prev && !prevIsPunct && !prevHasAccent && !(readerMode && isVowelKey && matchedIsUpper)) {
-              prev.accents.push(entry.mark);
-              i += key.length;
-              matched = true;
-              break;
-            }
-          }
-          tokens.push({ text: key, entry: entry, accents: [] });
-          i += key.length;
-          matched = true;
-          break;
-        }
-      }
-
-      if (!matched) {
-        const ch = part[i];
-        const entry = phoneticMap && phoneticMap[ch] ? phoneticMap[ch] : null;
-        tokens.push({ text: ch, entry: entry, accents: [] });
-        i += 1;
-      }
+    if (seg.type === 'code-inline') {
+      const span = document.createElement('span');
+      span.className = 'norin-code-inline';
+      span.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace';
+      span.style.background = 'transparent';
+      span.style.border = 'none';
+      span.textContent = seg.text;
+      target.appendChild(span);
+      continue;
     }
-
-    const hasWordChars = /[\p{L}\p{N}]/u.test(part);
-    const hasMappedGlyph = tokens.some(t => Boolean(t.entry));
-
-    let output = target;
-    if (hasWordChars || hasMappedGlyph) {
-      const wordWrapper = document.createElement('span');
-      wordWrapper.className = 'norin-word';
-      wordWrapper.dataset.latin = part;
-      wordWrapper.style.cursor = 'help';
-      target.appendChild(wordWrapper);
-      output = wordWrapper;
+    if (seg.type === 'code-block') {
+      const pre = document.createElement('pre');
+      pre.className = 'norin-code-block';
+      pre.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace';
+      pre.style.whiteSpace = 'pre-wrap';
+      pre.style.border = '1px solid var(--border)';
+      pre.style.padding = '10px 12px';
+      pre.style.borderRadius = '6px';
+      pre.style.background = 'var(--panel-bg)';
+      pre.style.color = 'var(--text)';
+      pre.style.margin = '8px 0';
+      pre.textContent = seg.text.replace(/^\n/, '');
+      target.appendChild(pre);
+      continue;
     }
-
-    const glyphBuffer = [];
-    const flushBufferAsSingles = () => {
-      for (const gt of glyphBuffer) output.appendChild(createGlyphNode(gt));
-      glyphBuffer.length = 0;
-    };
-
-    for (const tok of tokens) {
-      // if readerMode and the whole word is uppercase, do not build sinogram blocks
-      if (readerMode && isWordAllCaps) {
-        output.appendChild(createGlyphNode(tok));
-        continue;
-      }
-
-      const isGlyph = Boolean(tok.entry);
-      if (!isGlyph) {
-        if (glyphBuffer.length > 0) flushBufferAsSingles();
-        output.appendChild(createGlyphNode(tok));
-        continue;
-      }
-
-      glyphBuffer.push(tok);
-      if (glyphBuffer.length === 3) {
-        const block = document.createElement('span');
-        block.className = 'sinogram';
-
-        const t1 = createGlyphNode(glyphBuffer[0]);
-        t1.classList.add('sin-first');
-        block.appendChild(t1);
-
-        const t2 = createGlyphNode(glyphBuffer[1]);
-        t2.classList.add('sin-right');
-        block.appendChild(t2);
-
-        const t3 = createGlyphNode(glyphBuffer[2]);
-        t3.classList.add('sin-below');
-        block.appendChild(t3);
-
-        output.appendChild(block);
-        adjustStrokeForBlock(block);
-        glyphBuffer.length = 0;
-      }
-    }
-
-    if (glyphBuffer.length > 0) flushBufferAsSingles();
   }
 }
 
@@ -1001,6 +1106,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   content.style.fontSize = `${saved}px`;
   if (contentLatin) contentLatin.style.fontSize = `${saved}px`;
   if (contentNorin) contentNorin.style.fontSize = `${saved}px`;
+  if (chatTranscript) chatTranscript.style.fontSize = `${saved}px`;
+  if (chatInput) chatInput.style.fontSize = `${saved}px`;
 
   // initialize dark mode
   try {
@@ -1018,6 +1125,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     content.style.fontSize = `${v}px`;
     if (contentLatin) contentLatin.style.fontSize = `${v}px`;
     if (contentNorin) contentNorin.style.fontSize = `${v}px`;
+    if (chatTranscript) chatTranscript.style.fontSize = `${v}px`;
+    if (chatInput) chatInput.style.fontSize = `${v}px`;
     localStorage.setItem('readerFontSize', String(v));
   });
 
@@ -1036,18 +1145,35 @@ window.addEventListener('DOMContentLoaded', async () => {
     hideHoverTooltip();
     tabReader.classList.add('active');
     tabNotepad.classList.remove('active');
+    if (tabChat) tabChat.classList.remove('active');
     readerTab.style.display = '';
     notepadTab.style.display = 'none';
+    if (chatTab) chatTab.style.display = 'none';
   });
 
   tabNotepad.addEventListener('click', () => {
     hideHoverTooltip();
     tabNotepad.classList.add('active');
     tabReader.classList.remove('active');
+    if (tabChat) tabChat.classList.remove('active');
     readerTab.style.display = 'none';
     notepadTab.style.display = '';
     notepadInput.focus();
+    if (chatTab) chatTab.style.display = 'none';
   });
+
+  if (tabChat) {
+    tabChat.addEventListener('click', () => {
+      hideHoverTooltip();
+      tabChat.classList.add('active');
+      tabReader.classList.remove('active');
+      tabNotepad.classList.remove('active');
+      readerTab.style.display = 'none';
+      notepadTab.style.display = 'none';
+      chatTab.style.display = '';
+      if (chatInput) chatInput.focus();
+    });
+  }
 
   // Live conversion in notepad: render converted view on input
   notepadInput.addEventListener('input', () => {
@@ -1105,7 +1231,213 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   attachNorinHoverTooltips(contentNorin);
   attachNorinHoverTooltips(notepadOutput);
+  attachNorinHoverTooltips(chatTranscript);
 
   // render recent-file links on the start screen if applicable
   renderRecentLinksIfStart();
+});
+
+// -----------------
+// Chat functionality
+// -----------------
+function createMessageRow(role, labelText, opts = {}) {
+  const row = document.createElement('div');
+  row.className = `chat-row chat-${role}`;
+  row.style.display = 'flex';
+  row.style.width = '100%';
+  row.style.margin = '10px 0';
+
+  // Align row based on role
+  row.style.justifyContent = role === 'user' ? 'flex-end' : 'flex-start';
+
+  // Container holds label above bubble
+  const container = document.createElement('div');
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.gap = '6px';
+  // Do not expand horizontally: constrain to a sensible width
+  container.style.maxWidth = '75%';
+
+  const labelBar = document.createElement('div');
+  labelBar.style.display = 'flex';
+  labelBar.style.alignItems = 'center';
+  labelBar.style.gap = '8px';
+  labelBar.style.justifyContent = role === 'user' ? 'flex-end' : 'space-between';
+
+  const label = document.createElement('div');
+  label.className = 'chat-label';
+  label.style.fontWeight = '600';
+  label.style.color = 'var(--muted)';
+  label.style.textAlign = role === 'user' ? 'right' : 'left';
+  label.textContent = labelText || (role === 'user' ? 'User' : 'Assistant');
+
+  labelBar.appendChild(label);
+
+  let delBtn = null;
+  if (opts.deletable) {
+    delBtn = document.createElement('button');
+    delBtn.textContent = '×';
+    delBtn.title = 'Delete';
+    delBtn.style.background = 'transparent';
+    delBtn.style.border = '1px solid var(--border)';
+    delBtn.style.color = 'var(--text)';
+    delBtn.style.borderRadius = '4px';
+    delBtn.style.padding = '0 6px';
+    delBtn.style.lineHeight = '1.2';
+    delBtn.style.cursor = 'pointer';
+    if (typeof opts.onDelete === 'function') {
+      delBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        opts.onDelete();
+      });
+    }
+    labelBar.appendChild(delBtn);
+  }
+
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-bubble';
+  bubble.style.border = '1px solid var(--border)';
+  bubble.style.padding = '10px 12px';
+  bubble.style.borderRadius = '8px';
+  bubble.style.background = 'var(--panel-bg)';
+  bubble.style.color = 'var(--text)';
+  // Let the bubble size to content within the container cap
+  bubble.style.width = 'auto';
+  bubble.style.maxWidth = '100%';
+  bubble.style.textAlign = role === 'user' ? 'right' : 'left';
+  bubble.style.wordBreak = 'break-word';
+
+  container.appendChild(labelBar);
+  container.appendChild(bubble);
+  row.appendChild(container);
+  return { row, bubble, label, delBtn };
+}
+
+function scrollTranscriptToEnd() {
+  try { chatTranscript.scrollTop = chatTranscript.scrollHeight; } catch (e) {}
+}
+
+function renderLatinAsNorinInto(target, latinText) {
+  // Render using existing Norin renderer; readerMode on for consistency
+  renderInto(target, latinText || '', { readerMode: true });
+}
+
+async function sendChatMessage() {
+  if (!chatInput || !chatTranscript || chatSending) return;
+  const raw = (chatInput.innerText || '').trim();
+  if (!raw) return;
+
+  chatSending = true;
+  if (chatStatus) chatStatus.textContent = 'Sending…';
+  if (chatSend) { chatSend.textContent = 'Stop'; }
+
+  // Append user message (rendered as Norin)
+  const userId = `u${++chatMsgSeq}`;
+  const userMsg = createMessageRow('user', 'User', {
+    deletable: true,
+    onDelete: () => {
+      try { userMsg.row.remove(); } catch (e) {}
+      chatTranscriptData = chatTranscriptData.filter((m) => m && m.id !== userId);
+    }
+  });
+  userMsg.row.dataset.msgId = userId;
+  chatTranscript.appendChild(userMsg.row);
+  renderLatinAsNorinInto(userMsg.bubble, raw);
+  scrollTranscriptToEnd();
+  chatTranscriptData.push({ id: userId, role: 'user', latin: raw });
+
+  // Prepare assistant message container
+  let modelLabel = '';
+  try {
+    const info = await (window.NorinAPI && window.NorinAPI.getChatModelInfo ? window.NorinAPI.getChatModelInfo() : Promise.resolve({ id: '', displayName: '' }));
+    modelLabel = (info && (info.displayName || info.id)) || '';
+  } catch (e) {}
+  const asstId = `a${++chatMsgSeq}`;
+  const asstMsg = createMessageRow('assistant', modelLabel || 'Assistant', {
+    deletable: true,
+    onDelete: () => {
+      try { asstMsg.row.remove(); } catch (e) {}
+      chatTranscriptData = chatTranscriptData.filter((m) => m && m.id !== asstId);
+    }
+  });
+  asstMsg.row.dataset.msgId = asstId;
+  chatTranscript.appendChild(asstMsg.row);
+  let partial = '';
+  let scheduled = false;
+  const scheduleRender = () => {
+    if (scheduled) return; scheduled = true;
+    setTimeout(() => {
+      try { renderLatinAsNorinInto(asstMsg.bubble, partial); } catch (e) {}
+      scheduled = false;
+      scrollTranscriptToEnd();
+    }, 160);
+  };
+
+  // Clear input
+  chatInput.innerText = '';
+
+  try {
+    // Build up to 3 previous messages from transcriptData
+    const history = chatTranscriptData
+      .filter((m) => m && (m.role === 'user' || m.role === 'assistant'))
+      .filter((m) => m.id !== userId)
+      .slice(-3)
+      .map((m) => ({ role: m.role, content: m.latin }));
+
+    if (window.NorinAPI && typeof window.NorinAPI.chatStream === 'function') {
+      chatAbortController = new AbortController();
+      const opts = { history, signal: chatAbortController.signal };
+      const res = await window.NorinAPI.chatStream(raw, (chunk, full, meta) => {
+        if (meta && meta.start && meta.modelName && asstMsg.label) {
+          asstMsg.label.textContent = meta.modelName;
+        }
+        partial = full || partial;
+        scheduleRender();
+      }, opts);
+      // Final render to ensure we show the last part
+      renderLatinAsNorinInto(asstMsg.bubble, partial);
+      scrollTranscriptToEnd();
+      chatTranscriptData.push({ id: asstId, role: 'assistant', latin: partial });
+    } else if (window.NorinAPI && typeof window.NorinAPI.chat === 'function') {
+      const r = await window.NorinAPI.chat(raw, { history });
+      partial = (r && r.text) || '';
+      if (r && (r.modelDisplayName || r.modelId) && asstMsg.label) {
+        asstMsg.label.textContent = r.modelDisplayName || r.modelId;
+      }
+      renderLatinAsNorinInto(asstMsg.bubble, partial);
+      scrollTranscriptToEnd();
+      chatTranscriptData.push({ id: asstId, role: 'assistant', latin: partial });
+    } else {
+      throw new Error('Chat API unavailable');
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') {
+      asstMsg.bubble.textContent = (partial && partial.length) ? '' : 'Stopped';
+      if (partial && partial.length) {
+        chatTranscriptData.push({ id: asstId, role: 'assistant', latin: partial });
+      }
+    } else {
+      asstMsg.bubble.textContent = `Error: ${e && e.message ? e.message : 'failed'}`;
+    }
+  } finally {
+    chatSending = false;
+    chatAbortController = null;
+    if (chatSend) { chatSend.textContent = 'Send'; }
+    if (chatStatus) chatStatus.textContent = '';
+  }
+}
+
+if (chatSend) chatSend.addEventListener('click', () => {
+  if (chatSending && chatAbortController) {
+    try { chatAbortController.abort(); } catch (e) {}
+    return;
+  }
+  sendChatMessage();
+});
+if (chatInput) chatInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChatMessage();
+  }
 });

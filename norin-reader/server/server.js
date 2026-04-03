@@ -4,6 +4,8 @@ const path = require('path');
 const fs = require('fs');
 const fsp = require('fs').promises;
 const multer = require('multer');
+// Note: @lmstudio/sdk is ESM; use dynamic import in Node CommonJS
+
 
 const app = express();
 const PORT = Number(80);
@@ -71,6 +73,127 @@ app.use(express.static(PUBLIC_DIR, { fallthrough: true }));
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB cap for now
+});
+
+// -----------------------
+// LM Studio - Chat Bridge
+// -----------------------
+let __lm_client = null;
+let __lm_model = null;
+async function getLMModel() {
+  if (__lm_model) return __lm_model;
+  // Dynamic import to avoid ESM/CJS interop issues at load time
+  const { LMStudioClient } = await import('@lmstudio/sdk');
+
+  const baseUrl = process.env.LMS_BASE_URL && String(process.env.LMS_BASE_URL).trim();
+  __lm_client = new LMStudioClient(baseUrl ? { baseUrl } : undefined);
+
+  const modelId = (process.env.LMS_MODEL && String(process.env.LMS_MODEL).trim()) || 'google/gemma-3n-e4b';
+  __lm_model = await __lm_client.llm.model(modelId);
+  return __lm_model;
+}
+
+// Simple helper to validate inbound message
+function validateMessageBody(body) {
+  const msg = body && typeof body.message === 'string' ? body.message : '';
+  const trimmed = (msg || '').trim();
+  if (!trimmed) return { ok: false, reason: 'message_required' };
+  if (trimmed.length > 8000) return { ok: false, reason: 'message_too_long' };
+  return { ok: true, message: trimmed };
+}
+
+// Non-streamed chat: returns JSON { text }
+app.post('/api/v1/chat', async (req, res, next) => {
+  try {
+    // Support optional streaming via query param `?stream=1`
+    const doStream = String(req.query.stream || '').toLowerCase() === '1';
+
+    const v = validateMessageBody(req.body);
+    if (!v.ok) return res.status(400).json({ error: 'bad_request', reason: v.reason });
+
+    const model = await getLMModel();
+    // Try to gather model identifiers for headers
+    const modelIdForHdr = (process.env.LMS_MODEL && String(process.env.LMS_MODEL).trim()) || 'google/gemma-3n-e4b';
+    let modelNameForHdr = '';
+    try {
+      if (typeof model.getModelInfo === 'function') {
+        const info = await model.getModelInfo();
+        modelNameForHdr = info && (info.displayName || info.name || '');
+      }
+    } catch (e) {}
+
+    // Build optional chat context from provided history (last few messages)
+    const history = Array.isArray(req.body && req.body.history) ? req.body.history : [];
+    const normalizedHistory = [];
+    for (const m of history) {
+      if (!m || typeof m !== 'object') continue;
+      const role = m.role === 'assistant' ? 'assistant' : 'user';
+      const content = typeof m.content === 'string' ? m.content : '';
+      if (!content) continue;
+      normalizedHistory.push({ role, content });
+    }
+    // Append current message as latest user turn
+    const messages = normalizedHistory.concat([{ role: 'user', content: v.message }]);
+
+    // Build chat context object if available
+    let chatContext = null;
+    try {
+      const mod = await import('@lmstudio/sdk');
+      if (mod && mod.Chat && typeof mod.Chat.from === 'function') {
+        chatContext = mod.Chat.from(messages);
+      }
+    } catch (e) {
+      // Fallback: allow model.respond to accept array or string
+    }
+
+    if (doStream) {
+      res.status(200);
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      if (modelIdForHdr) res.setHeader('X-Model-Id', modelIdForHdr);
+      if (modelNameForHdr) res.setHeader('X-Model-Name', modelNameForHdr);
+      // Let Node handle chunked transfer automatically
+      const prediction = chatContext ? model.respond(chatContext) : model.respond(v.message);
+      try {
+        for await (const frag of prediction) {
+          const piece = (frag && typeof frag.content === 'string') ? frag.content : '';
+          if (piece) res.write(piece);
+        }
+      } catch (e) {
+        // if streaming fails mid-way, end the response; client should handle partials
+      } finally {
+        try { await prediction.result().catch(() => {}); } catch (e) {}
+        res.end();
+      }
+      return;
+    }
+
+    // Non-streamed: get the full content
+    const result = await (chatContext ? model.respond(chatContext) : model.respond(v.message));
+    const text = result && typeof result.content === 'string' ? result.content : '';
+    const displayName = result && result.modelInfo && (result.modelInfo.displayName || result.modelInfo.name);
+    return res.json({ text, modelId: modelIdForHdr, modelDisplayName: displayName || modelNameForHdr || modelIdForHdr });
+  } catch (e) {
+    console.error('chat failed', e);
+    return res.status(502).json({ error: 'upstream_error', message: e && e.message ? String(e.message) : 'failed' });
+  }
+});
+
+// Expose model info for client labeling
+app.get('/api/v1/chat/model', async (req, res) => {
+  try {
+    const model = await getLMModel();
+    const modelId = (process.env.LMS_MODEL && String(process.env.LMS_MODEL).trim()) || 'google/gemma-3n-e4b';
+    let displayName = '';
+    try {
+      if (typeof model.getModelInfo === 'function') {
+        const info = await model.getModelInfo();
+        displayName = info && (info.displayName || info.name || '');
+      }
+    } catch (e) {}
+    res.json({ id: modelId, displayName: displayName || modelId });
+  } catch (e) {
+    res.status(500).json({ error: 'unavailable' });
+  }
 });
 
 function newId() {

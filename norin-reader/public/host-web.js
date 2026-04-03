@@ -15,7 +15,7 @@
   }
 
   const metaOriginRaw = META('server-origin').trim();
-  let SERVER_ORIGIN = (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8080');
+  let SERVER_ORIGIN = (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:80');
   if (metaOriginRaw) {
     const metaHost = parseHost(metaOriginRaw);
     const pageHost = (typeof window !== 'undefined') ? window.location.hostname : '';
@@ -50,6 +50,56 @@
       const r = await fetch(`${SERVER_ORIGIN}/api/open/${encodeURIComponent(id)}`, { method: 'POST' });
       if (!r.ok) throw new Error('mark failed');
       return r.json();
+    },
+    async chat(message, options = {}) {
+      const r = await fetch(`${SERVER_ORIGIN}/api/v1/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: String(message || ''), history: Array.isArray(options.history) ? options.history : undefined })
+      });
+      if (!r.ok) throw new Error(`chat failed: ${r.status}`);
+      return r.json(); // { text, modelId?, modelDisplayName? }
+    },
+    async chatStream(message, onChunk, options = {}) {
+      const ctrl = options.signal ? null : new AbortController();
+      const signal = options.signal || (ctrl && ctrl.signal);
+      const r = await fetch(`${SERVER_ORIGIN}/api/v1/chat?stream=1`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: String(message || ''), history: Array.isArray(options.history) ? options.history : undefined }),
+        signal
+      });
+      if (!r.ok || !r.body) throw new Error(`chat stream failed: ${r.status}`);
+      const modelId = r.headers.get('x-model-id') || '';
+      const modelName = r.headers.get('x-model-name') || modelId;
+      try { typeof onChunk === 'function' && onChunk('', '', { modelId, modelName, start: true }); } catch (_) {}
+      const reader = r.body.getReader();
+      const decoder = new TextDecoder();
+      let full = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        if (chunk) {
+          full += chunk;
+          try { typeof onChunk === 'function' && onChunk(chunk, full, { modelId, modelName }); } catch (_) {}
+        }
+      }
+      // flush
+      try { typeof onChunk === 'function' && onChunk('', full, { modelId, modelName, end: true }); } catch (_) {}
+      return { text: full, modelId, modelName, controller: ctrl };
+    },
+    async getChatModelInfo() {
+      if (API.__modelInfo) return API.__modelInfo;
+      try {
+        const r = await fetch(`${SERVER_ORIGIN}/api/v1/chat/model`);
+        if (r.ok) {
+          const j = await r.json();
+          API.__modelInfo = j;
+          return j;
+        }
+      } catch (e) {}
+      return { id: '', displayName: '' };
     }
   };
 
