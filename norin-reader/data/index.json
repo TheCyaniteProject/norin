@@ -1,0 +1,58 @@
+[
+  {
+    "id": "a8c9b4b2-2d28-4989-b7ad-e6f36146f98f",
+    "name": "a collection of short stories.txt",
+    "size": 7576,
+    "createdAt": "2026-04-02T20:58:56.084Z",
+    "lastOpenedAt": "2026-04-02T21:35:40.109Z",
+    "openCount": 3
+  },
+  {
+    "id": "0901b67a-b2e3-41eb-b57c-b182514c4ad3",
+    "name": "example.txt",
+    "size": 2574,
+    "createdAt": "2026-04-02T21:28:49.159Z",
+    "lastOpenedAt": "2026-04-02T21:29:50.577Z",
+    "openCount": 2
+  },
+  {
+    "id": "ba06afbf-7161-4d67-aed9-1b9ac5be9c69",
+    "name": "QitM-ch1.txt",
+    "size": 6796,
+    "createdAt": "2026-04-02T21:17:09.564Z",
+    "lastOpenedAt": "2026-04-02T21:17:40.683Z",
+    "openCount": 2
+  },
+  {
+    "id": "82931f9a-e4f1-4223-8dbe-3ed7df4fafac",
+    "name": "README.md",
+    "size": 1173,
+    "createdAt": "2026-04-02T20:42:34.064Z",
+    "lastOpenedAt": "2026-04-02T20:42:34.064Z",
+    "openCount": 0
+  },
+  {
+    "id": "38ad136f-65fc-42c3-a131-1dc0c4635e0b",
+    "name": "a collection of short stories.txt",
+    "size": 7576,
+    "createdAt": "2026-04-02T20:40:26.763Z",
+    "lastOpenedAt": "2026-04-02T20:40:26.763Z",
+    "openCount": 0
+  },
+  {
+    "id": "555cb8b9-ef09-44e8-a27a-89eb605ab3e6",
+    "name": "a collection of short stories.txt",
+    "size": 7576,
+    "createdAt": "2026-04-02T19:46:54.994Z",
+    "lastOpenedAt": "2026-04-02T19:46:54.994Z",
+    "openCount": 0
+  },
+  {
+    "id": "df250572-b43c-4c78-b1f7-0b35d5c84133",
+    "name": "hello-norin.txt",
+    "size": 12,
+    "createdAt": "2026-04-02T18:18:33.345Z",
+    "lastOpenedAt": "2026-04-02T18:18:33.345Z",
+    "openCount": 0
+  }
+]

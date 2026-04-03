@@ -19,6 +19,43 @@ const notepadOutput = document.getElementById('notepadOutput');
 const notepadScale = document.getElementById('notepadScale');
 const notepadScaleVal = document.getElementById('notepadScaleVal');
 
+// Loading overlay elements
+const loadingOverlay = document.getElementById('loadingOverlay');
+const loadingLabel = loadingOverlay ? loadingOverlay.querySelector('.loading-label') : null;
+const loadingDots = loadingOverlay ? loadingOverlay.querySelector('.loading-dots') : null;
+let loadingTimer = null;
+let loadingDepth = 0; // simple refcount so nested shows don't prematurely hide
+
+function showLoadingOverlay(label) {
+  if (!loadingOverlay) return;
+  if (label && loadingLabel) loadingLabel.textContent = label;
+  loadingDepth++;
+  if (loadingDepth > 1) return; // already visible
+  loadingOverlay.setAttribute('aria-hidden', 'false');
+  document.body.setAttribute('aria-busy', 'true');
+  let i = 0;
+  const frames = ['','.', '..', '...'];
+  const tick = () => {
+    if (loadingDots) loadingDots.textContent = frames[i];
+    i = (i + 1) % frames.length;
+  };
+  tick();
+  loadingTimer = setInterval(tick, 400);
+}
+
+function hideLoadingOverlay() {
+  if (!loadingOverlay) return;
+  loadingDepth = Math.max(0, loadingDepth - 1);
+  if (loadingDepth > 0) return;
+  if (loadingTimer) {
+    clearInterval(loadingTimer);
+    loadingTimer = null;
+  }
+  loadingOverlay.setAttribute('aria-hidden', 'true');
+  document.body.removeAttribute('aria-busy');
+  if (loadingDots) loadingDots.textContent = '   ';
+}
+
 let phoneticMap = null;
 let phoneticKeys = [];
 // cache mapping from original raw text -> rendered glyph HTML
@@ -312,41 +349,64 @@ async function loadMappings() {
     const resp = await fetch('mappings.json');
     const map = await resp.json();
 
+    // derive glyph base URL from meta if present; expected to point to the directory that directly contains .svg files
+    const meta = document.querySelector('meta[name="glyph-base"]');
+    const GLYPH_BASE_URL = (meta && (meta.getAttribute('content') || '').trim()) || '';
+
+    const resolveGlyphUrl = (u) => {
+      if (!GLYPH_BASE_URL || typeof u !== 'string') return u;
+      const base = GLYPH_BASE_URL.replace(/\/$/, '');
+      // Strip leading ../norin-font/ and optional glyphs/ so base can be set to .../norin-font/glyphs
+      const stripped = u.replace(/^\.\.\/norin-font\/(?:glyphs\/)?/, '');
+      return `${base}/${stripped}`;
+    };
+
     for (const [k, v] of Object.entries(map)) {
-      if (typeof v === 'string' && v.toLowerCase().endsWith('.svg')) {
+      let val = v;
+      if (typeof val === 'string' && val.toLowerCase().endsWith('.svg')) {
+        if (GLYPH_BASE_URL && val.startsWith('../norin-font/')) {
+          val = resolveGlyphUrl(val);
+          map[k] = val;
+        }
         try {
-          const r = await fetch(v);
+          const r = await fetch(val);
           if (r.ok) map[k] = { svg: await r.text() };
         } catch (e) {
-          console.warn('Failed to fetch svg for', k, v, e);
+          console.warn('Failed to fetch svg for', k, val, e);
         }
       } else if (
-        typeof v === 'object' &&
-        v !== null &&
-        v.svg &&
-        typeof v.svg === 'string' &&
-        v.svg.toLowerCase().endsWith('.svg')
+        typeof val === 'object' &&
+        val !== null &&
+        val.svg &&
+        typeof val.svg === 'string' &&
+        val.svg.toLowerCase().endsWith('.svg')
       ) {
+        if (GLYPH_BASE_URL && val.svg.startsWith('../norin-font/')) {
+          val.svg = resolveGlyphUrl(val.svg);
+        }
         try {
-          const r = await fetch(v.svg);
-          if (r.ok) v.svg = await r.text();
+          const r = await fetch(val.svg);
+          if (r.ok) val.svg = await r.text();
         } catch (e) {
-          console.warn('Failed to fetch svg for', k, v.svg, e);
+          console.warn('Failed to fetch svg for', k, val.svg, e);
         }
       }
 
       if (
-        typeof v === 'object' &&
-        v !== null &&
-        v.mark &&
-        typeof v.mark === 'string' &&
-        v.mark.toLowerCase().endsWith('.svg')
+        typeof val === 'object' &&
+        val !== null &&
+        val.mark &&
+        typeof val.mark === 'string' &&
+        val.mark.toLowerCase().endsWith('.svg')
       ) {
+        if (GLYPH_BASE_URL && val.mark.startsWith('../norin-font/')) {
+          val.mark = resolveGlyphUrl(val.mark);
+        }
         try {
-          const r2 = await fetch(v.mark);
-          if (r2.ok) v.mark = await r2.text();
+          const r2 = await fetch(val.mark);
+          if (r2.ok) val.mark = await r2.text();
         } catch (e) {
-          console.warn('Failed to fetch mark svg for', k, v.mark, e);
+          console.warn('Failed to fetch mark svg for', k, val.mark, e);
         }
       }
     }
@@ -756,13 +816,16 @@ async function loadReaderDocument(result) {
 
   const original = result.content || '';
 
+  // Yield a frame so overlay/dots can update before heavy rendering work
+  try { await new Promise((r) => requestAnimationFrame(r)); } catch (e) {}
+
   cacheGlyphsFor(original);
   prepareReaderContent(original);
   setReaderMode(toggleGlyphs.checked);
 
   // set window title to include filename (basename)
   try {
-    const name = (result.filePath || '').split(/[/\\]/).pop() || 'Untitled';
+    const name = result.name || ((result.filePath || '').split(/[/\\]/).pop()) || 'Untitled';
     document.title = `Norin Reader - "${name}"`;
   } catch (e) {}
 
@@ -775,7 +838,14 @@ function renderText(rawText) {
 }
 
 openBtn.addEventListener('click', async () => {
-  const result = await window.readerAPI.openFile();
+  let result;
+  try {
+    // Wait for user's selection; do not show overlay during file picker
+    result = await window.readerAPI.openFile();
+  } catch (e) {
+    status.textContent = `Error: ${e && e.message ? e.message : 'failed to open'}`;
+    return;
+  }
 
   if (result.canceled) {
     status.textContent = 'Open canceled.';
@@ -792,21 +862,17 @@ openBtn.addEventListener('click', async () => {
     return;
   }
 
-  await loadReaderDocument(result);
-
-  // maintain recent files list (most recent first, unique, max 3)
+  showLoadingOverlay('Loading');
+  // Ensure the overlay paints before heavy work begins
+  try { await new Promise((r) => requestAnimationFrame(r)); } catch (e) {}
   try {
-    const raw = localStorage.getItem('recentFiles');
-    const arr = raw ? JSON.parse(raw) : [];
-    const path = result.filePath;
-    const idx = arr.indexOf(path);
-    if (idx !== -1) arr.splice(idx, 1);
-    arr.unshift(path);
-    while (arr.length > 3) arr.pop();
-    localStorage.setItem('recentFiles', JSON.stringify(arr));
-  } catch (e) {
-    console.warn('Failed to update recentFiles', e);
+    await loadReaderDocument(result);
+  } finally {
+    hideLoadingOverlay();
   }
+
+  // mark opened on server to update shared history (fire-and-forget)
+  try { window.NorinAPI && window.NorinAPI.markOpened && result.id && window.NorinAPI.markOpened(result.id); } catch (e) {}
 
   renderRecentLinksIfStart();
 });
@@ -818,45 +884,53 @@ toggleGlyphs.addEventListener('change', () => {
 });
 
 // Render recent file links when content is the start placeholder
-function renderRecentLinks() {
+async function renderRecentLinks() {
   const div = document.createElement('div');
   div.className = 'recent-list';
 
-  const raw = localStorage.getItem('recentFiles');
-  const arr = raw ? JSON.parse(raw) : [];
+  let arr = [];
+  try {
+    const list = await (window.NorinAPI && window.NorinAPI.listFiles ? window.NorinAPI.listFiles('opened', { dedupe: 'name' }) : Promise.resolve([]));
+    arr = Array.isArray(list) ? list.slice(0, 5) : [];
+  } catch (e) {
+    return null; // graceful: no recents shown on failure
+  }
+
   if (!arr || arr.length === 0) return null;
 
-  for (const p of arr) {
+  for (const doc of arr) {
     const btn = document.createElement('button');
     btn.className = 'recent-link';
-    btn.textContent = p.split(/[/\\]/).pop();
-    btn.title = p;
+    btn.textContent = doc.name || ('#' + (doc.id || '?'));
+    btn.title = doc.id || '';
 
     btn.addEventListener('click', async () => {
-      // open recent file (status updates are shown only for errors)
-      const res = await window.readerAPI.openFileByPath(p);
+      showLoadingOverlay('Loading');
+      // Allow one frame so dots start animating before fetch/render
+      try { await new Promise((r) => requestAnimationFrame(r)); } catch (e) {}
+      // open by server document id
+      const res = await (window.readerAPI.openById ? window.readerAPI.openById(doc.id) : Promise.resolve({ canceled: true, error: 'unsupported' }));
 
       if (res.canceled) {
+        hideLoadingOverlay();
         status.textContent = 'Open canceled.';
         return;
       }
 
       if (res.error) {
+        hideLoadingOverlay();
         status.textContent = `Error: ${res.error}`;
         return;
       }
 
-      await loadReaderDocument(res);
-
       try {
-        const raw2 = localStorage.getItem('recentFiles');
-        const arr2 = raw2 ? JSON.parse(raw2) : [];
-        const idx = arr2.indexOf(p);
-        if (idx !== -1) arr2.splice(idx, 1);
-        arr2.unshift(p);
-        while (arr2.length > 3) arr2.pop();
-        localStorage.setItem('recentFiles', JSON.stringify(arr2));
-      } catch (e) {}
+        await loadReaderDocument(res);
+      } finally {
+        hideLoadingOverlay();
+      }
+
+      // mark opened on server to update shared history (fire-and-forget)
+      try { window.NorinAPI && window.NorinAPI.markOpened && doc.id && window.NorinAPI.markOpened(doc.id); } catch (e) {}
 
       renderRecentLinksIfStart();
     });
@@ -867,7 +941,7 @@ function renderRecentLinks() {
   return div;
 }
 
-function renderRecentLinksIfStart() {
+async function renderRecentLinksIfStart() {
   const defaultText = 'Start by opening a text file from disk.';
   if (
     (contentLatin.textContent || '').trim() === '' ||
@@ -880,8 +954,24 @@ function renderRecentLinksIfStart() {
     p.textContent = defaultText;
     contentLatin.appendChild(p);
 
-    const links = renderRecentLinks();
-    if (links) contentLatin.appendChild(links);
+    try {
+      const links = await renderRecentLinks();
+      if (links) {
+        contentLatin.appendChild(links);
+      } else {
+        const note = document.createElement('div');
+        note.style.color = 'var(--muted)';
+        note.style.marginTop = '6px';
+        note.textContent = 'Recent files unavailable.';
+        contentLatin.appendChild(note);
+      }
+    } catch (e) {
+      const note = document.createElement('div');
+      note.style.color = 'var(--muted)';
+      note.style.marginTop = '6px';
+      note.textContent = 'Recent files unavailable.';
+      contentLatin.appendChild(note);
+    }
 
     contentNorin.innerHTML = '';
     contentLatin.style.display = '';
@@ -892,11 +982,16 @@ function renderRecentLinksIfStart() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  const lastFile = localStorage.getItem('lastFilePath');
+  const lastFile = null; // deprecated path-based reopen
   // set default window title
   document.title = 'Norin Reader';
 
+  // Optional: show overlay if mappings take noticeable time
+  let mappingOverlayShown = false;
+  const mappingDelay = setTimeout(() => { showLoadingOverlay('Loading'); mappingOverlayShown = true; }, 300);
   await loadMappings();
+  clearTimeout(mappingDelay);
+  if (mappingOverlayShown) hideLoadingOverlay();
 
   // initialize font/glyph size from saved preference or default
   const saved = Number(localStorage.getItem('readerFontSize')) || 18;

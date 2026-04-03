@@ -16,7 +16,7 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadFile(path.join(__dirname, 'renderer.html'));
+  mainWindow.loadFile(path.join(__dirname, '../public/index.html'));
 
   mainWindow.on('closed', () => {
     mainWindow = null;

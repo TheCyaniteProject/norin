@@ -6,6 +6,9 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Norin Reader</title>
+    <!-- Configurable endpoints for server and glyphs (override content in deployment) -->
+    <meta name="server-origin" content="http://127.0.0.1:8080" />
+    <meta name="glyph-base" content="https://raw.githubusercontent.com/TheCyaniteProject/norin/25ac4a6a53d50d3a44acd492020c272436454b09/norin-font/glyphs" />
     <style>
         :root {
             --bg: #ffffff;
@@ -378,6 +381,12 @@
             display: none;
         }
 
+        @media print {
+            .toolbar, .tabs { display: none !important; }
+            html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
+            #content, .content-inner { height: auto !important; overflow: visible !important; }
+        }
+
         .letter {
             display: inline-block;
         }
@@ -495,6 +504,41 @@
             background: #0b2b6b;
             border-color: rgba(255, 255, 255, 0.12);
         }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            pointer-events: all;
+        }
+
+        .loading-overlay[aria-hidden="false"] {
+            display: flex;
+        }
+
+        .loading-message {
+            font-size: 1.25rem;
+            color: var(--text);
+            display: inline-flex;
+            align-items: baseline;
+        }
+
+        .loading-dots {
+            display: inline-block;
+            width: 3ch; /* fixed width for 0..3 dots so label doesn't shift */
+            margin-left: 0.25em;
+            white-space: pre; /* preserve spaces in frames */
+            text-align: left;
+        }
+
+        /* Hide overlay during export and printing */
+        body.exporting .loading-overlay { display: none !important; }
+        @media print { .loading-overlay { display: none !important; } }
     </style>
 </head>
 
@@ -516,6 +560,7 @@
             <div style="display:flex; align-items:center; gap:8px;">
                 <button id="openBtn">Open File</button>
                 <button id="exportPdfBtn">Export PDF</button>
+                <div id="status" style="margin-left:8px; color: var(--muted);"></div>
             </div>
             <div style="margin-left:auto; display:flex; align-items:center; gap:12px;">
                 <label class="switch">
@@ -558,6 +603,13 @@
             </div>
         </div>
     </div>
+    <!-- Global loading overlay -->
+    <div id="loadingOverlay" class="loading-overlay" aria-hidden="true">
+        <div class="loading-message" role="status" aria-live="polite" aria-atomic="true">
+            <span class="loading-label">Loading</span><span class="loading-dots" aria-hidden="true">   </span>
+        </div>
+    </div>
+    <script src="host-web.js"></script>
     <script src="renderer.js"></script>
 </body>
 

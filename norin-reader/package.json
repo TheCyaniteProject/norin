@@ -2,15 +2,22 @@
   "name": "norin-reader",
   "version": "1.0.0",
   "description": "Simple reading app in NodeJS + Electron",
-  "main": "main.js",
+  "main": "electron/main.js",
   "scripts": {
-    "start": "electron .",
-    "server": "http-server . -p 8080 -a 0.0.0.0"
+    "client": "electron .",
+    "server": "node server/server.js",
+    "dev:server": "nodemon server/server.js"
   },
   "keywords": ["electron","reader","text"],
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^26.0.0"
+    "electron": "^26.0.0",
+    "nodemon": "^3.0.0"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1"
   }
 }
