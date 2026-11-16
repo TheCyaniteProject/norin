@@ -87,6 +87,109 @@ async function benchmark(client,sessionId){
   console.log(JSON.stringify(results,null,2));
   fs.writeFileSync(path.join(temporary,'benchmark.json'),JSON.stringify(results,null,2));
 }
+async function symbolComparison(client,sessionId){
+  assert.ok(process.env.NORIN_TEST_GLYPHS,'Use NORIN_TEST_GLYPHS for a comparison with the real artwork');
+  const symbols=[',','.',':',';','!','?',"'",'"','-','–','—','/','\\','|','<','>','(',')','[',']','{','}','+','=','*','&','@','#','$','%','^','~','_','’','…'];
+  const escape=text=>text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+  const cards=symbols.map((symbol,index)=>`<article><label data-norin-ignore>${escape('this'+symbol+'test')}</label><div class="sample small" id="s${index}">${escape('this'+symbol+'test')}</div><div class="sample large" id="l${index}" contenteditable="true">${escape('this'+symbol+'test')}</div></article>`).join('');
+  const base=fixture(),scripts=base.slice(base.indexOf('<script>'));
+  const content=`<!doctype html><meta charset="utf-8"><style>
+    body{margin:0;padding:24px;background:#313338;color:#eee;font:18px Arial}
+    h1{font:22px Arial;margin:0 0 8px}p{font:13px Arial;margin:0 0 20px;color:#bbb}
+    main{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    article{background:#25272d;border:1px solid #555;border-radius:6px;padding:10px 16px;height:106px;box-sizing:border-box;overflow:visible}
+    label{display:block;font:13px monospace;color:#aaa;margin-bottom:6px}
+    .sample{line-height:32px;white-space:nowrap}.small{font-size:18px}.large{font-size:26px;line-height:40px}
+  </style><h1 data-norin-ignore>Norin common symbol comparison</h1><p data-norin-ignore>English label, 18px page text, 26px editable text. Real glyph artwork. Click a larger sample to check its editing caret.</p><main>${cards}</main>${scripts}`;
+  const file=path.join(temporary,'symbols.html');fs.writeFileSync(file,content);
+  await client.call('Emulation.setDeviceMetricsOverride',{width:1400,height:1160,deviceScaleFactor:1,mobile:false},sessionId);
+  await client.call('Page.navigate',{url:'file://'+file},sessionId);
+  let ready=false;
+  for(let i=0;i<250;i++){
+    ready=await client.evaluate(`!!window.norinTest&&[...document.querySelectorAll('.sample')].every(el=>{const r=norinTest.textNodes.get(el.firstChild);return r?.words.length&&r.words.every(w=>w.box?.isConnected&&w.template.ready);})&&!norinTest.pending&&!norinTest.dirtyRecords.size`,sessionId);
+    if(ready)break;await delay(30);
+  }
+  assert.ok(ready,'all symbol samples rendered');
+  const results=await client.evaluate(`(()=>{
+    const api=norinTest,results=[];
+    for(const el of document.querySelectorAll('.small')){
+      const word=api.textNodes.get(el.firstChild).words[0],t=word.template;
+      const xml=new DOMParser().parseFromString(decodeURIComponent(t.node.firstElementChild.src.split(',').slice(1).join(',')),'image/svg+xml');
+      const svg=document.importNode(xml.documentElement,true),view=svg.viewBox.baseVal;
+      svg.setAttribute('width',view.width);svg.setAttribute('height',view.height);
+      const host=document.createElement('div');host.setAttribute('data-norin-ignore','');host.style.cssText='position:fixed;left:0;top:0;visibility:hidden';document.body.append(host);host.attachShadow({mode:'open'}).append(svg);
+      const cells=[...svg.querySelector('.norin-word').children],bounds=cells.map(cell=>api.cellInk(cell));
+      const punctuation=cells.findIndex(cell=>cell.classList.contains('literal-token'));
+      const round=value=>Math.round(value*1000)/1000;
+      results.push({source:word.text,normalized:api.wordPlan(word.text).text,widthEm:round(t.width),punctuation:punctuation<0?null:cells[punctuation].textContent,leftGapEm:punctuation>0?round((bounds[punctuation].left-bounds[punctuation-1].right)/100):null,rightGapEm:punctuation>=0&&punctuation<bounds.length-1?round((bounds[punctuation+1].left-bounds[punctuation].right)/100):null,failed:t.failed});host.remove();
+    }
+    return {samples:results,errors};
+  })()`,sessionId);
+  assert.deepEqual(results.errors,[]);
+  assert.ok(results.samples.every(row=>!row.failed&&Number.isFinite(row.leftGapEm)&&Number.isFinite(row.rightGapEm)&&row.leftGapEm>=0&&row.rightGapEm>=0),'symbol images loaded without overlapping neighbors');
+  fs.writeFileSync(path.join(temporary,'symbols.json'),JSON.stringify(results,null,2));
+  const screenshot=await client.call('Page.captureScreenshot',{format:'png'},sessionId);
+  fs.writeFileSync(path.join(temporary,'symbols.png'),Buffer.from(screenshot.data,'base64'));
+  console.log(JSON.stringify(results,null,2));
+  console.log(`Symbol comparison: ${file}\nScreenshot: ${path.join(temporary,'symbols.png')}`);
+}
+async function punctuationRegression(client,sessionId){
+  const content=fixture().replace('<div id="messages">', `<section style="position:fixed;left:700px;top:80px;font:18px/32px Arial;width:650px"><div id="punctPage">hello world : hello &gt; world</div><div id="punctEditor" contenteditable="true">hello world : hello &gt; world</div><div id="punctInline"><span>hello world </span><span>:</span><em> hello </em><span>&gt;</span><span> world</span></div><div id="punctAttached">hello:world hello&gt;world</div></section><div id="messages">`);
+  const file=path.join(temporary,'punctuation.html');fs.writeFileSync(file,content);
+  await client.call('Page.navigate',{url:'file://'+file},sessionId);
+  const checks=await client.evaluate(`(async()=>{
+    const wait=ms=>new Promise(r=>setTimeout(r,ms));
+    for(let i=0;i<150&&!window.norinTest;i++)await wait(30);
+    const api=norinTest,words=id=>[...api.textNodes.values()].filter(r=>document.getElementById(id).contains(r.node)).flatMap(r=>r.words);
+    for(let i=0;i<150;i++){if(['punctPage','punctEditor','punctInline','punctAttached'].every(id=>words(id).length&&words(id).every(w=>w.box?.isConnected)))break;await wait(30);}
+    const checks={};
+    for(const id of ['punctPage','punctEditor','punctInline']){
+      const list=words(id);
+      checks[id+'IncludesPunctuation']=list.length===6&&list.some(w=>w.text===':')&&list.some(w=>w.text==='>');
+      checks[id+'CompactGaps']=list.every((w,i)=>{if(!i)return true;const a=list[i-1].box.getBoundingClientRect(),b=w.box.getBoundingClientRect();return Math.abs(b.left-a.right-18*.6)<1;});
+    }
+    checks.attachedPunctuation=words('punctAttached').every(w=>w.box?.isConnected&&w.template.hits.some(h=>h.end===h.start+1));
+    const editor=document.getElementById('punctEditor');editor.focus();
+    const range=document.createRange();range.setStart(editor.firstChild,14);range.collapse(true);getSelection().removeAllRanges();getSelection().addRange(range);document.dispatchEvent(new Event('selectionchange'));
+    await wait(200);
+    checks.editorCaret=!!api.textNodes.get(editor.firstChild).group.caretState;
+    checks.originalPreserved=editor.firstChild.data==='hello world : hello > world';
+    checks.noErrors=errors.length===0;return checks;
+  })()`,sessionId);
+  for(const [name,passed]of Object.entries(checks))assert.ok(passed,'punctuation: '+name+' '+JSON.stringify(checks));
+  console.log('Punctuation spacing in page text, editors and inline elements: passed');
+}
+async function wrappedRegression(client,sessionId){
+  const content=fixture().replace('<div id="messages">', `<section id="wrapCases" style="position:fixed;left:700px;top:50px;z-index:3;font:18px/28px monospace"><div id="compactWrap" style="width:180px;overflow-wrap:anywhere">aaaaaaaaaaaaaaaaaaaaaaaa</div><div id="forcedWrap" style="width:32px;overflow-wrap:anywhere">unauthorized</div><div id="hyphenWrap" style="width:55px">word-wrap</div><div id="softWrap" style="width:55px;overflow-wrap:anywhere">unau&#173;thorized</div></section><div id="messages">`);
+  const file=path.join(temporary,'wrapped.html');fs.writeFileSync(file,content);
+  await client.call('Page.navigate',{url:'file://'+file},sessionId);
+  const result=await client.evaluate(`(async()=>{
+    const wait=ms=>new Promise(r=>setTimeout(r,ms));
+    for(let i=0;i<150&&!window.norinTest;i++)await wait(30);
+    const api=norinTest,get=id=>api.textNodes.get(document.getElementById(id).firstChild)?.words[0];
+    const covered=word=>[...CSS.highlights.get('norin-original')||[]].some(r=>r.startContainer===word.range.startContainer&&r.startOffset<=word.range.startOffset&&r.endOffset>=word.range.endOffset);
+    for(let i=0;i<150;i++){if(['compactWrap','forcedWrap','hyphenWrap','softWrap'].every(id=>get(id)&&covered(get(id))))break;await wait(30);}
+    const compact=get('compactWrap'),forced=get('forcedWrap'),hyphen=get('hyphenWrap'),soft=get('softWrap');
+    const checks={
+      compactSourceWraps:[...compact.range.getClientRects()].filter(r=>r.width).length>1,
+      compactNorinStaysWhole:!!compact.box?.isConnected&&![...compact.fragments.values()].some(f=>f.box?.isConnected),
+      forcedWrapTranslated:covered(forced)&&[...forced.fragments.values()].filter(f=>f.box?.isConnected).length>1,
+      hyphenWrapTranslated:covered(hyphen),softHyphenTranslated:covered(soft),
+      fullWordNormalization:[...forced.fragments.values()].map(f=>f.template?.text||'').join('')===api.wordPlan(forced.text).text,
+      originalTextPreserved:document.getElementById('softWrap').firstChild.data==='unau\u00adthorized'
+    };
+    document.getElementById('forcedWrap').style.width='500px';
+    for(let i=0;i<150&&!forced.box?.isConnected;i++)await wait(30);
+    checks.resizeUnwraps=!!forced.box?.isConnected&&![...forced.fragments.values()].some(f=>f.box?.isConnected);
+    document.getElementById('forcedWrap').style.width='32px';
+    for(let i=0;i<150;i++){if(!forced.box?.isConnected&&[...forced.fragments.values()].filter(f=>f.box?.isConnected).length>1)break;await wait(30);}
+    checks.resizeRewraps=!forced.box?.isConnected&&[...forced.fragments.values()].filter(f=>f.box?.isConnected).length>1;
+    checks.noErrors=errors.length===0;
+    return checks;
+  })()`,sessionId);
+  for(const [name,passed]of Object.entries(result))assert.ok(passed,'wrapped word: '+name+' '+JSON.stringify(result));
+  console.log('Wrapped words, compact whole words, soft hyphens and resizing: passed');
+}
 async function strictRegression(client,sessionId){
     // YouTube-like strict Trusted Types, plus ordinary document scrolling.
     const strictHTML=fixture().replace('<style>', '<style>html{height:100%;overflow-x:hidden}body{min-height:100%}')
@@ -148,6 +251,9 @@ async function main(){
     const {sessionId}=await client.call('Target.attachToTarget',{targetId:target.targetId,flatten:true});
     await client.call('Emulation.setDeviceMetricsOverride',{width:1400,height:900,deviceScaleFactor:1,mobile:false},sessionId);
     await client.call('Page.enable',{},sessionId);
+    if(process.argv.includes('--symbols')){await symbolComparison(client,sessionId);return;}
+    if(process.argv.includes('--punct-only')){await punctuationRegression(client,sessionId);return;}
+    if(process.argv.includes('--wrap-only')){await wrappedRegression(client,sessionId);return;}
     if(process.argv.includes('--strict-only')){await strictRegression(client,sessionId);return;}
     await client.call('Page.navigate',{url:'file://'+html},sessionId);
     let ready=false;
@@ -158,7 +264,7 @@ async function main(){
     assert.ok(ready,'script reached a rendered idle state');
     const result=await client.evaluate(`(async()=>{
       const api=window.norinTest,wait=ms=>new Promise(r=>setTimeout(r,ms));
-      async function settle(){for(let i=0;i<100;i++){await wait(30);if(!api.dirtyRecords.size&&!api.pending&&[...api.templates.values()].every(t=>t.ready)){await wait(50);if(!api.dirtyRecords.size&&!api.pending)return;}}throw Error('did not settle');}
+      async function settle(){for(let i=0;i<100;i++){await wait(30);if(!api.dirtyRecords.size&&!api.pending&&[...api.templates.values()].every(t=>t.ready)){await wait(50);if(!api.dirtyRecords.size&&!api.pending)return;}}throw Error('did not settle: '+JSON.stringify({dirty:[...api.dirtyRecords].map(g=>g.element.id),pending:api.pending,cold:[...api.templates.values()].filter(t=>!t.ready).map(t=>({text:t.text,width:t.width})),errors}));}
       async function until(check){for(let i=0;i<150;i++){if(check())return;await wait(20);}throw Error('condition timed out');}
       const results={};const check=(name,value)=>{results[name]=!!value;if(!value)throw Error('FAIL '+name);};
       await settle();
@@ -181,6 +287,12 @@ async function main(){
       check('compoundEmDash',[...api.shapeFor('full-stop').querySelectorAll('.punct-hyphen')].map(e=>e.textContent).join('')==='—');
       check('multipleCompoundEmDashes',[...api.shapeFor('non-three-letter').querySelectorAll('.punct-hyphen')].map(e=>e.textContent).join('')==='——');
       check('numericRangeUnchanged',api.shapeFor('10-20').querySelector('.punct-hyphen').textContent==='-');
+      for(const [source,expected]of [['oo-','—'],['-oo','—'],['o-o','—'],['o - o','-'],['--','—'],['----','——'],['---','—-'],[' -- ','—'],['10-20','-']]){
+        const actual=api.wordPlan(source).text.replace(/[^—-]/gu,'');
+        check('dashRule '+JSON.stringify(source),actual===expected);
+        check('dashRendering '+JSON.stringify(source),[...api.shapeFor(source).querySelectorAll('.punct-hyphen')].map(e=>e.textContent).join('')===expected);
+      }
+
 
       const spacing=cacheWords('spacingMessage');let maxInternalGap=0,hasBlock=false;
       for(const word of spacing){
@@ -191,7 +303,7 @@ async function main(){
         const host=document.createElement('div');host.style.cssText='position:fixed;left:0;top:0;visibility:hidden';document.body.append(host);const root=host.attachShadow({mode:'open'});root.append(svg);
         for(const wrapper of svg.querySelectorAll('.norin-word')){
           const cells=[...wrapper.children],bounds=cells.map(cell=>api.cellInk(cell));
-          for(let i=1;i<bounds.length;i++){const gap=bounds[i].left-bounds[i-1].right;check('internalGapNonnegative',gap>=-.05);maxInternalGap=Math.max(maxInternalGap,gap);}
+          for(let i=1;i<bounds.length;i++){const gap=bounds[i].left-bounds[i-1].right;check('internalGapNonnegative',gap>=-.05);const previous=cells[i-1];const padding=(previous.classList.contains('punct-spaced')?(previous.textContent==='—'||previous.textContent==='|'?30:10):0)+(cells[i].classList.contains('punct-spaced')?10:0);maxInternalGap=Math.max(maxInternalGap,gap-padding);}
           for(const cell of cells)if(cell.classList.contains('sinogram')){hasBlock=true;check('blockProportionsUnchanged',Math.abs(parseFloat(getComputedStyle(cell).width)/parseFloat(getComputedStyle(cell).fontSize)-5/3)<.001);}
           for(const cell of cells)for(const wrapper of [cell,...cell.querySelectorAll('.glyph-wrapper')]){
             const base=wrapper.querySelector(':scope > svg.glyph'),accent=wrapper.querySelector(':scope > svg.accent');
@@ -396,6 +508,8 @@ async function main(){
     assert.ok(fallback,'vector fallback remains readable when image decoding fails');
     console.log('Image-failure fallback: passed');
     await client.call('Page.removeScriptToEvaluateOnNewDocument',{identifier:injected.identifier},sessionId);
+    await punctuationRegression(client,sessionId);
+    await wrappedRegression(client,sessionId);
     await strictRegression(client,sessionId);
     if(process.argv.includes('--benchmark'))await benchmark(client,sessionId);
   }finally{client.socket.close();chrome.kill();}

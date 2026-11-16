@@ -7,7 +7,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_registerMenuCommand
 // @connect      raw.githubusercontent.com
-// @version      2.7.3
+// @version      2.7.12
 // @description  English-to-Norin SVG overlays, including Discord PWA. Original text and input values stay English.
 // ==/UserScript==
 
@@ -740,6 +740,8 @@ function createLiteralNode(text) {
   const span = document.createElement('span');
   span.className = 'literal-token';
   span.textContent = text;
+  if (text === '<' || text === '>') span.classList.add('punct-angle');
+  if (text === '—' || text === '/' || text === '\\' || text === '|' || text === ':' || text === ';') span.classList.add('punct-spaced');
 
   if (apostrophes.has(text)) {
     span.classList.add('punct-joiner', 'punct-apostrophe');
@@ -1057,11 +1059,8 @@ function renderInto(target, rawText, opts = {}) {
         }
       }
 
-      const hasWordChars = /[\p{L}\p{N}]/u.test(part);
-      const hasMappedGlyph = tokens.some(t => Boolean(t.entry));
-
       let output = targetEl;
-      if (hasWordChars || hasMappedGlyph) {
+      if (tokens.length) {
         const wordWrapper = document.createElement('span');
         wordWrapper.className = 'norin-word';
         wordWrapper.dataset.latin = part;
@@ -1182,8 +1181,9 @@ const renderCSS=glyphCSS+`
 .sinogram .sin-below .accent{top:-.75em}
 .norin-word{cursor:inherit!important}
 .norin-word .literal-token{margin-left:0!important;margin-right:0!important}
-.norin-word .punct-apostrophe{font-size:.75em;top:-.08em}
+.norin-word .punct-apostrophe{font-size:.75em;top:-.5em}
 .norin-word .punct-hyphen{font-size:.85em;top:-.08em}
+.norin-word .punct-angle{font-size:1.6em;top:-.08em}
 .space{display:inline-block;width:.6em}
 .norin-caret{position:absolute;display:block;width:1.5px;pointer-events:none;user-select:none;animation:norin-caret-blink 1s step-end infinite;z-index:2}
 @keyframes norin-caret-blink{0%,45%{opacity:1}50%,100%{opacity:0}}
@@ -1302,7 +1302,7 @@ function emojiGapHasText(previous,current){
 function addNode(node,resetRanges=false,recover=false){
   if(!node.parentElement||node.parentElement.closest(skip+',input,textarea'))return;
   let record=textNodes.get(node);
-  if(!record&&!/[a-z0-9]/i.test(node.data))return;
+  if(!record&&!/[a-z0-9\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]/i.test(node.data))return;
   const group=recordFor(scopeFor(node.parentElement));
   if(!record){record={node,text:null,words:[],group};textNodes.set(node,record);group.nodes.add(record);}
   else if(record.group!==group){record.group.nodes.delete(record);dirty(record.group);record.group=group;group.nodes.add(record);}
@@ -1311,7 +1311,7 @@ function addNode(node,resetRanges=false,recover=false){
   if(recover){
     const rect=node.parentElement.getBoundingClientRect(),clip=clipFor(node.parentElement);
     if(rect.width&&rect.height&&rect.bottom>clip.top&&rect.top<clip.bottom&&rect.right>clip.left&&rect.left<clip.right){
-      const missing=record.text!==node.data||record.words.length>0&&!record.words.some(w=>w.box?.isConnected);
+      const missing=record.text!==node.data||record.words.length>0&&!record.words.some(w=>w.box?.isConnected||[...(w.fragments?.values()||[])].some(f=>f.box?.isConnected));
       if(!group.near){group.near=true;activeRecords.add(group);resize.observe(group.element);dirty(group);}
       else if(missing)dirty(group);
     }
@@ -1334,7 +1334,7 @@ function track(root,resetRanges=false,recover=false){
   const walker=document.createTreeWalker(root,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT,{
     acceptNode(n){
       if(n.nodeType===Node.ELEMENT_NODE){if(n.matches(skip))return NodeFilter.FILTER_REJECT;if(n.matches('input,textarea')){addControl(n);return NodeFilter.FILTER_REJECT;}addEmoji(n,recover);return NodeFilter.FILTER_SKIP;}
-      return /[a-z0-9]/i.test(n.data)||textNodes.has(n)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;
+      return /[a-z0-9\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]/i.test(n.data)||textNodes.has(n)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;
     }
   });
   let node;while((node=walker.nextNode()))addNode(node,resetRanges,recover);
@@ -1434,7 +1434,7 @@ function wordPlan(text){
   if(plan){spellings.delete(text);spellings.set(text,plan);return plan;}
   if(text.includes('`'))plan={key:JSON.stringify(['code',text]),text,normalized:false};
   else{
-    const converted=normalizeText(text).replace(/(?<=\p{L})[-‐‑‒–](?=\p{L})/gu,'—'),layout=[];
+    const converted=normalizeText(text).replace(/--/g,'—').replace(/(?<=\p{L})[-‐‑‒–]|[-‐‑‒–](?=\p{L})/gu,'—'),layout=[];
     for(const part of converted.split(/(\s+)/)){
       if(!part)continue;
       if(/^\s+$/.test(part)){layout.push(['space',part]);continue;}
@@ -1511,9 +1511,12 @@ function readWordMetrics(probe,words){
     for(const cell of item.cells){
       const rect=cell.getBoundingClientRect(),ink=cellInk(cell);
       const joiner=cell.matches('.punct-joiner'),previousJoiner=previous?.matches('.punct-joiner');
-      const gap=previous?(joiner||previousJoiner?5:14):0;cursor+=gap;
+      const gap=previous?(joiner||previousJoiner?5:14):0;
+      const padded=cell.classList.contains('punct-spaced');
+      const paddingLeft=padded?10:0;
+      const paddingRight=padded?(cell.textContent==='—'||cell.textContent==='|'?30:10):0;cursor+=gap+paddingLeft;
       item.positions.push({cell,left:(cursor-(ink.left-rect.left))/100,top:(rect.top-baseline+100)/100});
-      cursor+=Math.max(0,ink.right-ink.left);previous=cell;
+      cursor+=Math.max(0,ink.right-ink.left)+paddingRight;previous=cell;
     }
     item.width=cursor/100;width+=cursor-wordRect.width;
   }
@@ -1729,7 +1732,7 @@ function tokenize(record,protectedRanges=[]){
   if(record.text===node.data&&record.codeKey===codeKey)return;record.codeKey=codeKey;
   releaseWords(record,true);record.text=node.data;record.words=[];
   for(const match of node.data.matchAll(/\S+/gu)){
-    if(!/[a-z0-9]/i.test(match[0])||/^https?:\/\//i.test(match[0])||protectedRanges.some(s=>match.index<s.end&&match.index+match[0].length>s.start))continue;
+    if(!/[a-z0-9\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]/i.test(match[0])||/^https?:\/\//i.test(match[0])||protectedRanges.some(s=>match.index<s.end&&match.index+match[0].length>s.start))continue;
     const range=document.createRange();range.setStart(node,match.index);range.setEnd(node,match.index+match[0].length);
     record.words.push({text:match[0],range,box:null,glyph:null,template:null});
   }
@@ -1767,6 +1770,7 @@ function wordFragments(word,rects){
       fragment={text:word.text.slice(piece.start,piece.end),range,box:null,glyph:null,template:null};
     }
     const start=normalizedCaret(word.text,piece.start).cut,end=normalizedCaret(word.text,piece.end).cut;
+    fragment.sourceWord=word;fragment.normalizedStart=start;
     const prepared={text:wordPlan(word.text).text.slice(start,end),start};
     next.set(key,fragment);result.push({word:fragment,rect:piece.rect,prepared,source:word});
   }
@@ -1801,18 +1805,20 @@ function processText(group){
     for(const word of record.words){
       const rects=[...word.range.getClientRects()].filter(r=>r.width&&r.height);
       if(!rects.some(r=>r.right>clip.left&&r.left<clip.right&&r.bottom>clip.top&&r.top<clip.bottom)){parkWord(word);continue;}
-      for(const piece of wordFragments(word,rects)){
+      const pieces=wordFragments(word,rects);
+      const whole=rects.length>1?{word,request:wordRequest(word.text,cs,group,activeCaret&&!activeCaret.control&&activeCaret.node===node&&activeCaret.offset>word.range.startOffset&&activeCaret.offset<word.range.endOffset?activeCaret.offset-word.range.startOffset:null),fits:false}:null;
+      for(const [index,piece]of pieces.entries()){
         const fragment=piece.word,r=piece.rect;
         if(r.right<=clip.left||r.left>=clip.right||r.bottom<=clip.top||r.top>=clip.bottom){parkWord(fragment);continue;}
         const cut=activeCaret&&!activeCaret.control&&activeCaret.node===node&&activeCaret.offset>fragment.range.startOffset&&activeCaret.offset<fragment.range.endOffset?activeCaret.offset-fragment.range.startOffset:null;
         const prepared=piece.prepared?{text:piece.prepared.text,cut:cut===null?null:normalizedCaret(word.text,activeCaret.offset-word.range.startOffset).cut-piece.prepared.start}:null;
         const request=wordRequest(fragment.text,cs,group,cut,prepared);
-        placements.push({word:fragment,request,t:request.templates[0],cs,el,rect:r,size:parseFloat(cs.fontSize),scope:group.element});owners.add(el);
+        placements.push({word:fragment,whole,wholeCandidate:index===0?whole:null,request,t:request.templates[0],cs,el,rect:r,size:parseFloat(cs.fontSize),scope:group.element});owners.add(el);
       }
     }
   }
-  finishTemplates(placements.flatMap(p=>p.request.templates));
-  for(const placement of placements)placement.t=resolveWord(placement.request);
+  finishTemplates(placements.flatMap(p=>[...p.request.templates,...(p.wholeCandidate?.request.templates||[])]));
+  for(const placement of placements){placement.t=resolveWord(placement.request);if(placement.wholeCandidate)placement.wholeCandidate.t=resolveWord(placement.wholeCandidate.request);}
   const lines=new Map();
   for(const p of placements){const key=Math.round(p.rect.top/3)*3;if(!lines.has(key))lines.set(key,[]);lines.get(key).push(p);}
   for(const emoji of [...group.emojis]){
@@ -1826,25 +1832,35 @@ function processText(group){
     }
     if(selected)selected.push(placement);
   }
-  for(const line of lines.values()){
-    const ready=line.every(p=>p.kind==='emoji'||p.t.ready);for(const p of line)p.lineReady=ready;
+  for(const originalLine of [...lines.values()].sort((a,b)=>a[0].rect.top-b[0].rect.top)){
+    const line=originalLine.filter(p=>!p.whole?.fits);
+    if(!line.length)continue;
+    const ready=line.every(p=>p.kind==='emoji'||p.t.ready&&(!p.wholeCandidate||p.wholeCandidate.t.ready));for(const p of line)p.lineReady=ready;
     if(!ready)continue; // Keep a whole cold line English until its images can replace it together.
     line.sort((a,b)=>a.rect.left-b.rect.left);const start=line[0].rect.left;let prev=null;
     for(const p of line){p.gap=prev?Math.max(Math.min(prev.size,p.size)*.6,p.rect.left-prev.rect.right):0;p.naturalWidth=p.kind==='emoji'?p.rect.width:p.t.width*p.size;prev=p;}
     // A glyph has the site's inherited font size, regardless of word or line length.
     const scale=GLYPH_SCALE;let cursor=start;
-    const glyphs=line.filter(p=>p.kind!=='emoji');
-    const inkTop=Math.min(...glyphs.map(p=>p.t.inkTop*p.size*scale)),inkBottom=Math.max(...glyphs.map(p=>p.t.inkBottom*p.size*scale));
-    const center=(Math.min(...line.map(p=>p.rect.top))+Math.max(...line.map(p=>p.rect.bottom)))/2;
-    const visualY=center-(inkTop+inkBottom)/2;
     let previous=null;
     for(const p of line){
       const node=p.word?.range.startContainer;
-      const barrier=previous&&(p.kind==='emoji'||previous.kind==='emoji'?emojiGapHasText(previous,p):previous.word.range.startContainer!==node||node.data.slice(previous.word.range.endOffset,p.word.range.startOffset).trim());
+      const barrier=previous&&(p.kind==='emoji'||previous.kind==='emoji'?emojiGapHasText(previous,p):(previous.word.range.startContainer===node?node.data.slice(previous.word.range.endOffset,p.word.range.startOffset).trim():emojiGapHasText(previous,p)));
       if(barrier)cursor=p.rect.left;else cursor+=p.gap;
-      p.x=cursor;p.scale=scale;p.visualY=visualY;cursor+=p.naturalWidth*(p.kind==='emoji'?1:scale);
+      if(p.wholeCandidate){
+        const scope=group.element,box=scope.getBoundingClientRect(),scopeStyle=styleOf(scope);
+        const right=Math.min(clipFor(p.el).right,box.right-(parseFloat(scopeStyle.paddingRight)||0)-(parseFloat(scopeStyle.borderRightWidth)||0));
+        const wholeWidth=p.wholeCandidate.t.width*p.size;
+        if(cursor+wholeWidth*scale<=right+.5){
+          p.wholeCandidate.fits=true;p.word=p.wholeCandidate.word;p.t=p.wholeCandidate.t;p.naturalWidth=wholeWidth;
+        }
+      }
+      p.x=cursor;p.scale=scale;cursor+=p.naturalWidth*(p.kind==='emoji'?1:scale);
       if(p.kind==='emoji')p.emoji.desired=p.x-p.rect.left;previous=p;
     }
+    const glyphs=line.filter(p=>p.kind!=='emoji');
+    const inkTop=Math.min(...glyphs.map(p=>p.t.inkTop*p.size*scale)),inkBottom=Math.max(...glyphs.map(p=>p.t.inkBottom*p.size*scale));
+    const center=(Math.min(...line.map(p=>p.rect.top))+Math.max(...line.map(p=>p.rect.bottom)))/2;
+    for(const p of line)p.visualY=center-(inkTop+inkBottom)/2;
   }
   // Create local anchors after reading source geometry; measure each anchor only once.
   const origins=new Map(),used=new Set();
@@ -2120,10 +2136,14 @@ function editingPoint(owner,x,y){
     for(const match of node.data.matchAll(/\S+/gu))if(offset>=match.index&&offset<=match.index+match[0].length&&/^https?:\/\//i.test(match[0]))return null;
   }
   let best=null,distance=Infinity;
-  for(const group of activeRecords)if(group.kind==='text')for(const record of group.nodes)if(owner.contains(record.node))for(const word of record.words)if(word.box?.isConnected){
+  for(const group of activeRecords)if(group.kind==='text')for(const record of group.nodes)if(owner.contains(record.node))for(const source of record.words)for(const word of source.box?.isConnected?[source]:source.fragments?.values()||[])if(word.box?.isConnected){
     const score=distanceToRect(x,y,word.box.getBoundingClientRect());if(score<distance){distance=score;best=word;}
   }
-  return best?{control:false,element:owner,node:best.range.startContainer,value:best.range.startContainer.data,offset:best.range.startOffset+glyphPointOffset(best.text,best.template,best.glyph,x,y)}:null;
+  if(!best)return null;
+  const source=best.sourceWord||best;
+  const template=best.sourceWord?{...best.template,hits:(best.template.hits||[]).map(hit=>({...hit,start:hit.start+best.normalizedStart,end:hit.end+best.normalizedStart}))}:best.template;
+  const offset=source.range.startOffset+glyphPointOffset(source.text,template,best.glyph,x,y);
+  return {control:false,element:owner,node:best.range.startContainer,value:best.range.startContainer.data,offset:Math.max(best.range.startOffset,Math.min(best.range.endOffset,offset))};
 }
 let editingPointer=null;
 function editingPointerDown(event){

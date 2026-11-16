@@ -1,4 +1,4 @@
-# Norin Everywhere 2.7.2
+# Norin Everywhere 2.7.12
 
 Create a Tampermonkey script, paste all of `norin-everywhere.user.js`, save,
 and reload Discord or another website. Allow access to
@@ -78,16 +78,21 @@ HTML `pre`, `code`, `kbd`, and `samp` elements, Discord/Slate code blocks,
 and literal backtick-delimited inline/fenced code remain English. Backtick
 protection also works across inline nodes and in composers and form controls.
 
-Hyphens between letters in compounds such as `full-stop` and `non-three-letter`
-render as em dashes in Norin. Original English, code, URLs, and numeric ranges
-are unchanged.
+Hyphens touching a letter on either side render as em dashes: `oo-`, `-oo`,
+and `o-o` become `oo—`, `—oo`, and `o—o`. Each `--` pair also becomes one
+em dash, so `----` becomes `——`. Spaced single hyphens (`o - o`), numeric
+ranges, original English, code, and URLs are unchanged.
 
 Selecting text hides the selected source element's Norin and reveals English;
 clearing the selection restores Norin. Selecting text in a form control reveals
 that control's English. Selection updates do not rerender glyphs or measure the
 page. Add `data-norin-ignore` to an element to exclude its subtree.
 
-Page line wrapping follows the original English layout. Words with the same
+Page line positions follow the original English layout. A word split across
+English lines stays whole on its first line when its complete Norin image fits
+the available width after preceding Norin words. Otherwise each native line
+fragment receives its own overlay. Normalization runs on the complete word
+before dividing its result, and discretionary soft hyphens are ignored. Words with the same
 site font size use the same fixed 72% glyph scale rather than shrinking individual
 words or lines differently. Accents are raised above their letters, and the two
 secondary glyphs have more vertical separation. Images have extra transparent
@@ -189,3 +194,30 @@ Root overflow and body overflow propagated to the viewport use viewport clipping
 rather than the scrolling HTML/body rectangle. This prevents a fixed translation
 cutoff on full-height pages, including reloads at a restored scroll position.
 Nested scroll containers keep their own clipping bounds.
+
+Wrapped-word checks cover forced wrapping, hyphen breaks, soft hyphens, compact
+words staying whole, and resizing between wrapped and unwrapped layouts.
+
+Standalone ASCII punctuation, including `:` and `>`, participates in the same
+Norin word flow as surrounding text instead of remaining at English coordinates.
+Adjacent inline text elements also share that flow when no protected text lies
+between them. Punctuation-only images use the same measured spacing as words.
+
+Apostrophes sit higher beside Norin glyphs in both cached word images and
+unstacked editing segments.
+
+Literal `<` and `>` symbols render at 160% size to distinguish them from Norin
+glyphs. Their measured width participates in word spacing and caret placement.
+
+Forward/back slashes, colons, and semicolons have an extra 0.1 em of space on each side. Em dashes and
+vertical bars have 0.1 em on the left and 0.3 em on the right,
+included in measured word widths and editing positions.
+
+For a visual comparison of common symbols in `this|test` at 18px and 26px:
+
+```bash
+NORIN_TEST_GLYPHS=/path/to/norin-font/glyphs node userscripts/tests/browser.cjs --symbols
+```
+
+This writes a standalone comparison HTML page, screenshot, and JSON spacing
+measurements to the printed temporary directory. The larger samples are editable.
