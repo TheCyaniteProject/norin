@@ -8,7 +8,7 @@ const multer = require('multer');
 
 
 const app = express();
-const PORT = Number(80);
+const PORT = Number(8086);
 
 // Paths
 const ROOT = path.resolve(__dirname, '..');
@@ -80,6 +80,8 @@ const upload = multer({
 // -----------------------
 let __lm_client = null;
 let __lm_model = null;
+// Optional system prompt to steer assistant behavior
+const CHAT_SYSTEM_PROMPT = (process.env.NORIN_CHAT_SYSTEM_PROMPT && String(process.env.NORIN_CHAT_SYSTEM_PROMPT).trim()) || 'For Language practice. Short messages only.';
 async function getLMModel() {
   if (__lm_model) return __lm_model;
   // Dynamic import to avoid ESM/CJS interop issues at load time
@@ -97,7 +99,8 @@ async function getLMModel() {
 function validateMessageBody(body) {
   const msg = body && typeof body.message === 'string' ? body.message : '';
   const trimmed = (msg || '').trim();
-  if (!trimmed) return { ok: false, reason: 'message_required' };
+  const historyCount = Array.isArray(body && body.history) ? body.history.length : 0;
+  if (!trimmed && historyCount === 0) return { ok: false, reason: 'message_required' };
   if (trimmed.length > 8000) return { ok: false, reason: 'message_too_long' };
   return { ok: true, message: trimmed };
 }
@@ -132,8 +135,11 @@ app.post('/api/v1/chat', async (req, res, next) => {
       if (!content) continue;
       normalizedHistory.push({ role, content });
     }
-    // Append current message as latest user turn
-    const messages = normalizedHistory.concat([{ role: 'user', content: v.message }]);
+    // Build full message list with optional system prompt, history, then current user turn (if provided)
+    const messages = [];
+    if (CHAT_SYSTEM_PROMPT) messages.push({ role: 'system', content: CHAT_SYSTEM_PROMPT });
+    for (const m of normalizedHistory) messages.push(m);
+    if (v.message) messages.push({ role: 'user', content: v.message });
 
     // Build chat context object if available
     let chatContext = null;
@@ -152,7 +158,8 @@ app.post('/api/v1/chat', async (req, res, next) => {
       if (modelIdForHdr) res.setHeader('X-Model-Id', modelIdForHdr);
       if (modelNameForHdr) res.setHeader('X-Model-Name', modelNameForHdr);
       // Let Node handle chunked transfer automatically
-      const prediction = chatContext ? model.respond(chatContext) : model.respond(v.message);
+      // Prefer passing structured messages; fall back handled by SDK if unsupported
+      const prediction = chatContext ? model.respond(chatContext) : model.respond(messages);
       try {
         for await (const frag of prediction) {
           const piece = (frag && typeof frag.content === 'string') ? frag.content : '';
@@ -168,7 +175,7 @@ app.post('/api/v1/chat', async (req, res, next) => {
     }
 
     // Non-streamed: get the full content
-    const result = await (chatContext ? model.respond(chatContext) : model.respond(v.message));
+    const result = await (chatContext ? model.respond(chatContext) : model.respond(messages));
     const text = result && typeof result.content === 'string' ? result.content : '';
     const displayName = result && result.modelInfo && (result.modelInfo.displayName || result.modelInfo.name);
     return res.json({ text, modelId: modelIdForHdr, modelDisplayName: displayName || modelNameForHdr || modelIdForHdr });

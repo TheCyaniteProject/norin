@@ -540,6 +540,20 @@
         /* Hide overlay during export and printing */
         body.exporting .loading-overlay { display: none !important; }
         @media print { .loading-overlay { display: none !important; } }
+
+        /* Mobile: prevent selecting Norin glyphs/blocks while keeping Latin selectable elsewhere */
+        @media (pointer: coarse) {
+            /* Core Norin render wrappers */
+            .glyph-wrapper,
+            .glyph-wrapper *,
+            .sinogram,
+            .sinogram * {
+                -webkit-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+                -webkit-touch-callout: none;
+            }
+        }
     </style>
 </head>
 

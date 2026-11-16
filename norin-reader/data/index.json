@@ -1,11 +1,27 @@
 [
   {
+    "id": "5fbb5a23-f129-4ded-a0be-f51e16fc95a1",
+    "name": "The Rise and Fall of Sarah 'Foxfire' Walker - Chapter 1 plus Chapter 2-3 scaffolding.md",
+    "size": 21656,
+    "createdAt": "2026-07-20T22:35:56.905Z",
+    "lastOpenedAt": "2026-07-20T22:37:13.779Z",
+    "openCount": 1
+  },
+  {
     "id": "a8c9b4b2-2d28-4989-b7ad-e6f36146f98f",
     "name": "a collection of short stories.txt",
     "size": 7576,
     "createdAt": "2026-04-02T20:58:56.084Z",
-    "lastOpenedAt": "2026-04-03T13:19:04.423Z",
-    "openCount": 5
+    "lastOpenedAt": "2026-07-20T22:21:07.457Z",
+    "openCount": 12
+  },
+  {
+    "id": "ba06afbf-7161-4d67-aed9-1b9ac5be9c69",
+    "name": "QitM-ch1.txt",
+    "size": 6796,
+    "createdAt": "2026-04-02T21:17:09.564Z",
+    "lastOpenedAt": "2026-04-04T01:57:36.921Z",
+    "openCount": 3
   },
   {
     "id": "0901b67a-b2e3-41eb-b57c-b182514c4ad3",
@@ -13,14 +29,6 @@
     "size": 2574,
     "createdAt": "2026-04-02T21:28:49.159Z",
     "lastOpenedAt": "2026-04-02T21:29:50.577Z",
-    "openCount": 2
-  },
-  {
-    "id": "ba06afbf-7161-4d67-aed9-1b9ac5be9c69",
-    "name": "QitM-ch1.txt",
-    "size": 6796,
-    "createdAt": "2026-04-02T21:17:09.564Z",
-    "lastOpenedAt": "2026-04-02T21:17:40.683Z",
     "openCount": 2
   },
   {

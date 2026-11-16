@@ -46,6 +46,15 @@
       if (!r.ok) throw new Error('list failed');
       return r.json();
     },
+    async fetchMetaById(id) {
+      try {
+        const list = await API.listFiles('opened');
+        if (Array.isArray(list)) {
+          return list.find((e) => e && e.id === id) || null;
+        }
+      } catch (_) {}
+      return null;
+    },
     async markOpened(id) {
       const r = await fetch(`${SERVER_ORIGIN}/api/open/${encodeURIComponent(id)}`, { method: 'POST' });
       if (!r.ok) throw new Error('mark failed');
@@ -174,8 +183,12 @@
       },
       async openById(id) {
         try {
-          const text = await API.fetchById(id);
-          return { canceled: false, id, name: `#${id}`, content: text };
+          const [text, meta] = await Promise.all([
+            API.fetchById(id),
+            API.fetchMetaById(id)
+          ]);
+          const name = (meta && meta.name) || `#${id}`;
+          return { canceled: false, id, name, content: text };
         } catch (e) {
           return { canceled: false, error: e.message };
         }

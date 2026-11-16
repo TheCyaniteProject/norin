@@ -33,6 +33,21 @@ let chatAbortController = null;
 let chatTranscriptData = []; // { id, role: 'user'|'assistant', latin }
 let chatMsgSeq = 0;
 
+// Window title state
+let currentDocName = null; // null when no Reader document is open
+
+function setReaderTitle() {
+  document.title = currentDocName ? `Norin Reader - "${currentDocName}"` : 'Norin Reader - Reader';
+}
+
+function setNotepadTitle() {
+  document.title = 'Norin Reader - Notepad';
+}
+
+function setChatTitle() {
+  document.title = 'Norin Reader - AI Chat';
+}
+
 // Loading overlay elements
 const loadingOverlay = document.getElementById('loadingOverlay');
 const loadingLabel = loadingOverlay ? loadingOverlay.querySelector('.loading-label') : null;
@@ -84,6 +99,26 @@ const GLYPH_STROKE_WIDTH = 22;
 
 // shared hover tooltip for Norin words
 let hoverTooltip = null;
+let touchHintHideTimer = null;
+
+function isCoarsePointer() {
+  try { return window.matchMedia && window.matchMedia('(pointer: coarse)').matches; } catch (_) { return false; }
+}
+
+function cleanLatinForHint(text) {
+  if (!text) return text;
+  let s = String(text).trim();
+  // Trim leading/trailing non-letter/number, but KEEP apostrophes (') as part of words like 'tis
+  try {
+    s = s.replace(/^[^\p{L}\p{N}']+/u, '');
+    s = s.replace(/[^\p{L}\p{N}']+$/u, '');
+  } catch (_) {
+    // Fallback without Unicode properties if engine lacks support
+    s = s.replace(/^[^A-Za-z0-9']+/, '');
+    s = s.replace(/[^A-Za-z0-9']+$/, '');
+  }
+  return s;
+}
 
 function ensureHoverTooltip() {
   if (hoverTooltip) return hoverTooltip;
@@ -112,14 +147,34 @@ function ensureHoverTooltip() {
   return tip;
 }
 
-function moveHoverTooltip(x, y) {
+function moveHoverTooltip(x, y, opts) {
   const tip = ensureHoverTooltip();
   const offset = 14;
 
+  const rect = tip.getBoundingClientRect();
+
+  if (opts && opts.mode === 'below-center' && opts.anchorRect) {
+    const anchor = opts.anchorRect;
+    const margin = 8;
+    let left = anchor.left + (anchor.width - rect.width) / 2;
+    let top = anchor.bottom + margin;
+
+    // Clamp horizontally
+    left = Math.max(8, Math.min(left, window.innerWidth - rect.width - 8));
+
+    // If not enough space below, place above
+    if (top + rect.height + 8 > window.innerHeight) {
+      top = Math.max(8, anchor.top - rect.height - margin);
+    }
+
+    tip.style.left = `${Math.round(left)}px`;
+    tip.style.top = `${Math.round(top)}px`;
+    return;
+  }
+
+  // Default: follow pointer with slight offset and viewport clamping
   let left = x + offset;
   let top = y + offset;
-
-  const rect = tip.getBoundingClientRect();
 
   if (left + rect.width + 8 > window.innerWidth) {
     left = Math.max(8, x - rect.width - offset);
@@ -133,7 +188,7 @@ function moveHoverTooltip(x, y) {
   tip.style.top = `${top}px`;
 }
 
-function showHoverTooltip(text, x, y) {
+function showHoverTooltip(text, x, y, opts) {
   if (!text) {
     hideHoverTooltip();
     return;
@@ -148,7 +203,7 @@ function showHoverTooltip(text, x, y) {
 
   tip.textContent = text;
   tip.style.display = 'block';
-  moveHoverTooltip(x, y);
+  moveHoverTooltip(x, y, opts);
 }
 
 function hideHoverTooltip() {
@@ -170,14 +225,60 @@ function attachNorinHoverTooltips(container) {
       return;
     }
 
-    showHoverTooltip(wordEl.dataset.latin || '', e.clientX, e.clientY);
+    const raw = wordEl.dataset.latin || '';
+    const cleaned = cleanLatinForHint(raw);
+    if (!cleaned) { hideHoverTooltip(); return; }
+    showHoverTooltip(cleaned, e.clientX, e.clientY);
   });
 
   container.addEventListener('mouseleave', hideHoverTooltip);
-  container.addEventListener('mousedown', hideHoverTooltip);
+  // Avoid immediate hide for touch interactions; keep click-to-hide for mouse
+  container.addEventListener('mousedown', (e) => {
+    if (isCoarsePointer()) return;
+    hideHoverTooltip();
+  });
 }
 
 window.addEventListener('scroll', hideHoverTooltip, true);
+
+function attachNorinTouchHints(container) {
+  if (!container) return;
+  const onPointerDown = (e) => {
+    // Only react to touch (or coarse pointers fallback)
+    const isTouch = (e && e.pointerType === 'touch') || isCoarsePointer();
+    if (!isTouch) return;
+
+    const target = e.target instanceof Element ? e.target : null;
+    if (!target) return;
+    const wordEl = target.closest('.norin-word[data-latin]');
+    if (!wordEl || !container.contains(wordEl)) return;
+
+    // Position centered under the tapped word on mobile
+    let anchorRect = null;
+    try { anchorRect = wordEl.getBoundingClientRect(); } catch (_) {}
+
+    try { e.preventDefault(); } catch (_) {}
+    try { e.stopPropagation(); } catch (_) {}
+
+    const latin = wordEl.dataset.latin || '';
+    const cleaned = cleanLatinForHint(latin);
+    if (!cleaned) return;
+
+    showHoverTooltip(cleaned, 0, 0, anchorRect ? { mode: 'below-center', anchorRect } : undefined);
+
+    if (touchHintHideTimer) {
+      clearTimeout(touchHintHideTimer);
+      touchHintHideTimer = null;
+    }
+    touchHintHideTimer = setTimeout(() => {
+      hideHoverTooltip();
+      touchHintHideTimer = null;
+    }, 5000);
+  };
+
+  // Use pointerdown to avoid separate touchstart/mousedown sequences
+  container.addEventListener('pointerdown', onPointerDown, { passive: false });
+}
 
 function cacheGlyphsFor(rawText) {
   if (!rawText) return '';
@@ -931,7 +1032,8 @@ async function loadReaderDocument(result) {
   // set window title to include filename (basename)
   try {
     const name = result.name || ((result.filePath || '').split(/[/\\]/).pop()) || 'Untitled';
-    document.title = `Norin Reader - "${name}"`;
+    currentDocName = name;
+    setReaderTitle();
   } catch (e) {}
 
   try { localStorage.setItem('lastFilePath', result.filePath); } catch (e) {}
@@ -954,6 +1056,7 @@ openBtn.addEventListener('click', async () => {
 
   if (result.canceled) {
     status.textContent = 'Open canceled.';
+    // do not change currentDocName on cancel
     return;
   }
 
@@ -964,6 +1067,8 @@ openBtn.addEventListener('click', async () => {
     readerRawText = '';
     readerNorinPreparedFor = null;
     content.removeAttribute('data-raw');
+    currentDocName = null;
+    setReaderTitle();
     return;
   }
 
@@ -1088,8 +1193,9 @@ async function renderRecentLinksIfStart() {
 
 window.addEventListener('DOMContentLoaded', async () => {
   const lastFile = null; // deprecated path-based reopen
-  // set default window title
-  document.title = 'Norin Reader';
+  // set default window title for Reader (no doc open)
+  currentDocName = null;
+  setReaderTitle();
 
   // Optional: show overlay if mappings take noticeable time
   let mappingOverlayShown = false;
@@ -1149,6 +1255,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     readerTab.style.display = '';
     notepadTab.style.display = 'none';
     if (chatTab) chatTab.style.display = 'none';
+    setReaderTitle();
   });
 
   tabNotepad.addEventListener('click', () => {
@@ -1160,6 +1267,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     notepadTab.style.display = '';
     notepadInput.focus();
     if (chatTab) chatTab.style.display = 'none';
+    setNotepadTitle();
   });
 
   if (tabChat) {
@@ -1172,6 +1280,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       notepadTab.style.display = 'none';
       chatTab.style.display = '';
       if (chatInput) chatInput.focus();
+      setChatTitle();
     });
   }
 
@@ -1232,6 +1341,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   attachNorinHoverTooltips(contentNorin);
   attachNorinHoverTooltips(notepadOutput);
   attachNorinHoverTooltips(chatTranscript);
+  attachNorinTouchHints(contentNorin);
+  attachNorinTouchHints(notepadOutput);
+  attachNorinTouchHints(chatTranscript);
 
   // render recent-file links on the start screen if applicable
   renderRecentLinksIfStart();

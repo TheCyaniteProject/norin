@@ -6,15 +6,15 @@
         "—": "-",
         "00devcomment_case": "Phonetic rules below are lowercase-only so uppercase can pass through mostly unchanged.",
         "im_contraction": {
-            "regex": "\\bi'm\\b",
+            "regex": "\\b[Ii]'m\\b",
             "replace": "i am"
         },
         "ive_contraction": {
-            "regex": "\\bi've\\b",
+            "regex": "\\b[Ii]'ve\\b",
             "replace": "i have"
         },
         "ill_contraction": {
-            "regex": "\\bi'll\\b",
+            "regex": "\\b[Ii]'ll\\b",
             "replace": "i will"
         },
         "and_word": {
@@ -22,7 +22,7 @@
             "replace": "y"
         },
         "he_word": {
-            "regex": "\\bhe\\b",
+            "regex": "\\b[Hh]e\\b",
             "replace": "hee"
         },
         "she_word": {
@@ -175,14 +175,12 @@
         },
         "sch": {
             "regex": {
-                "[Ss]ch": "sk",
-                "SCH": "SK"
+                "[Ss]ch": "sk"
             }
         },
         "tch": {
             "regex": {
-                "[Tt][Cc]h": "ch",
-                "TCH": "CH"
+                "[Tt]ch": "ch"
             }
         },
         "dge": {
@@ -291,7 +289,8 @@
                 "(th)ere(?=[^a-z]|$)": "$1air",
                 "(wh)ere(?=[^a-z]|$)": "$1air",
                 "([bwp])ear(?=[^a-z]|$)": "$1air",
-                "(?<=[^aeiou])are(?=[^a-z]|$)": "air"
+                "(?<=[^aeiou])are(?=[^a-z]|$)": "air",
+                "([Tt]h)ey'?re(?=[^a-z]|$)": "$1air'"
             }
         },
         "wh": {
