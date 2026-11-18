@@ -1,0 +1,6 @@
+Main scale - 80%
+Split scale (from 80%) - 38%
+Added split weight - 25 em
+Main/2nd padding - 50
+3rd padding - -charWidth + 2ndPadding (set LBearning THEN Width to 0)
+Accent scale - 70%

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Norin font test</title>
+  <style>
+    @font-face {
+      font-family: "Norin Test";
+      src: url("../norin-font/Norin.tff") format("truetype"),
+           url("../norin-font/Norin.ttf") format("truetype");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      unicode-range: U+E000-E061;
+    }
+    body { margin: 24px; color: #222; background: #fff; font-family: system-ui, sans-serif; }
+    h1 { font-size: 22px; }
+    p { color: #555; font-size: 14px; }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; }
+    th, td { padding: 16px; border: 1px solid #ddd; text-align: left; }
+    th { font-size: 13px; font-weight: 500; white-space: nowrap; background: #f5f5f5; }
+    td { white-space: nowrap; line-height: 1.6; }
+    .norin { font-family: "Norin Test", sans-serif; }
+    #all-characters { font-size: 48px; font-weight: 400; line-height: 1.6; white-space: nowrap; letter-spacing: 0; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>Norin font test</h1>
+  <p>Only U+E000–U+E061 use Norin. The regular font is used with browser-synthesized heavier weights.</p>
+  <h2>U+E000–U+E061</h2>
+  <div id="all-characters" class="norin"></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Size</th><th>400</th><th>500</th><th>600</th><th>700</th><th>900</th></tr></thead>
+      <tbody id="samples"></tbody>
+    </table>
+  </div>
+  <script>
+    document.getElementById('all-characters').textContent = Array.from(
+      { length: 0xE061 - 0xE000 + 1 }, (_, index) => String.fromCodePoint(0xE000 + index)
+    ).join('');
+    const samples = document.getElementById('samples');
+    for (const size of [12, 16, 24, 32, 48, 72, 96]) {
+      const row = document.createElement('tr');
+      const label = document.createElement('th');
+      label.scope = 'row';
+      label.textContent = `${size}px`;
+      row.append(label);
+      for (const weight of [400, 500, 600, 700, 900]) {
+        const cell = document.createElement('td');
+        cell.style.fontSize = `${size}px`;
+        cell.style.fontWeight = weight;
+        const glyphs = document.createElement('span');
+        glyphs.className = 'norin';
+        glyphs.textContent = '\uE000\uE003\uE001\uE003\uE002\uE003'.repeat(2) + '\uE000\uE000 \uE000\uE003\uE000';
+        cell.append('Test ', glyphs, ' わくわく');
+        row.append(cell);
+      }
+      samples.append(row);
+    }
+  </script>
+</body>
+</html>
