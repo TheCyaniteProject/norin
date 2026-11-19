@@ -382,7 +382,7 @@ const bundledMappings = {
     "pp": "p",
     "rr": "r",
     "final_y": {
-      "regex": "(?<=[a-z]{2})y(?=[^a-z]|$)",
+      "regex": "(?<=[a-z]{2})y(?=s?(?:[^a-z]|$))",
       "replace": "i"
     }
   },
@@ -503,6 +503,8 @@ let floatingControl=null;
 const LIMITS={spellings:4000,shapes:1000,templates:2000,views:2500};
 const FRAME_BUDGET_MS=7;
 const GLYPH_SCALE=1;
+const MIN_NORIN_FONT_SIZE=18;
+function norinFontSize(cs){return Math.max(MIN_NORIN_FONT_SIZE,parseFloat(cs.fontSize)||16);}
 const layer=document.createElement('div');
 layer.id='norin-userscript-layer';
 layer.setAttribute('aria-hidden','true');
@@ -1060,7 +1062,7 @@ function processText(group){
         const cut=activeCaret&&!activeCaret.control&&activeCaret.node===node&&activeCaret.offset>fragment.range.startOffset&&activeCaret.offset<fragment.range.endOffset?activeCaret.offset-fragment.range.startOffset:null;
         const prepared=piece.prepared?{text:piece.prepared.text,cut:cut===null?null:normalizedCaret(word.text,activeCaret.offset-word.range.startOffset).cut-piece.prepared.start}:null;
         const request=wordRequest(fragment.text,cs,group,cut,prepared);
-        placements.push({word:fragment,whole,wholeCandidate:index===0?whole:null,request,t:request.templates[0],cs,el,rect:r,size:parseFloat(cs.fontSize),scope:group.element});owners.add(el);
+        placements.push({word:fragment,whole,wholeCandidate:index===0?whole:null,request,t:request.templates[0],cs,el,rect:r,size:norinFontSize(cs),scope:group.element});owners.add(el);
       }
     }
   }
@@ -1086,7 +1088,7 @@ function processText(group){
     if(!ready)continue; // Keep a whole cold line English until its images can replace it together.
     line.sort((a,b)=>a.rect.left-b.rect.left);const start=line[0].rect.left;let prev=null;
     for(const p of line){p.gap=prev?Math.max(Math.min(prev.size,p.size)*.6,p.rect.left-prev.rect.right):0;p.naturalWidth=p.kind==='emoji'?p.rect.width:p.t.width*p.size;prev=p;}
-    // A glyph has the site's inherited font size, regardless of word or line length.
+    // Keep Norin readable at a minimum of 18px, regardless of word or line length.
     const scale=GLYPH_SCALE;let cursor=start;
     let previous=null;
     for(const p of line){
@@ -1202,10 +1204,10 @@ function processControl(group){
   const mount=mountFor(input.parentElement,group),origin=mount.host.getBoundingClientRect();
   if(view.box.parentNode!==mount.root)mount.root.append(view.box);
   setStyles(view.box,{position:'absolute',left:`${b.left+input.clientLeft-origin.left}px`,top:`${b.top+input.clientTop-origin.top}px`,width:`${input.clientWidth}px`,height:`${input.clientHeight}px`,overflow:'hidden'});
-  setStyles(view.mirror,{position:'relative',fontSize:cs.fontSize,fontFamily:cs.fontFamily,fontWeight:cs.fontWeight,fontStyle:cs.fontStyle,lineHeight:cs.lineHeight,color,boxSizing:'border-box',width:`${input.clientWidth}px`,padding:cs.padding,whiteSpace:input.tagName==='TEXTAREA'?'pre-wrap':'pre',overflowWrap:cs.overflowWrap,transform:`translate(${-view.scrollX}px,${-view.scrollY}px)`});
+  setStyles(view.mirror,{position:'relative',fontSize:`${norinFontSize(cs)}px`,fontFamily:cs.fontFamily,fontWeight:cs.fontWeight,fontStyle:cs.fontStyle,lineHeight:cs.lineHeight,color,boxSizing:'border-box',width:`${input.clientWidth}px`,padding:cs.padding,whiteSpace:input.tagName==='TEXTAREA'?'pre-wrap':'pre',overflowWrap:cs.overflowWrap,transform:`translate(${-view.scrollX}px,${-view.scrollY}px)`});
   view.customCaret=!!caret&&!!view.caretAnchor;
   if(view.customCaret){
-    const marker=view.caretAnchor.getBoundingClientRect(),mirror=view.mirror.getBoundingClientRect(),height=Math.max(12,parseFloat(cs.fontSize));
+    const marker=view.caretAnchor.getBoundingClientRect(),mirror=view.mirror.getBoundingClientRect(),height=norinFontSize(cs);
     const bar=view.caretElement=caretBar(view.caretElement,color,height);if(bar.parentNode!==view.mirror)view.mirror.append(bar);
     setStyles(bar,{display:'block',left:`${marker.left-mirror.left}px`,top:`${marker.top-mirror.top+(marker.height-height)/2}px`});restartCaret(bar,`${offset}:${view.revision}`);
     const caretSignature=`${offset}:${view.revision}:${input.clientWidth}:${input.clientHeight}`;

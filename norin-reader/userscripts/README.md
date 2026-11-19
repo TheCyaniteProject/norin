@@ -24,6 +24,9 @@ characters, and all-caps words remain unstacked. The font controls glyph
 placement and advance widths; there are no SVG downloads, word images, manually
 positioned glyphs, or special punctuation placement rules.
 
+Norin overlays use a minimum font size of 18px, including inputs and editors.
+Larger text keeps its original size, and English mode retains the site's sizing.
+
 Only mapped characters use Norin. The FontFace is restricted to U+E000–U+E061,
 and literal text inherits the website's font. Numbers, punctuation, symbols,
 emoji, and unsupported characters retain their text and normal typography.

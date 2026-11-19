@@ -22,7 +22,7 @@ OS2Version: 0
 OS2_WeightWidthSlopeOnly: 0
 OS2_UseTypoMetrics: 1
 CreationTime: 1794932251
-ModificationTime: 1795050843
+ModificationTime: 1795051181
 OS2TypoAscent: 0
 OS2TypoAOffset: 1
 OS2TypoDescent: 0
@@ -261,8 +261,8 @@ EndChar
 StartChar: uniE00B
 Encoding: 57355 57355 7
 Width: 1000
-Flags: H
-AnchorPoint: "vowel" 346 282 mark 0
+Flags: HO
+AnchorPoint: "vowel" 346 307 mark 0
 LayerCount: 2
 Fore
 SplineSet
@@ -277,7 +277,6 @@ SplineSet
  368 375 357 386 346 386 c 0
  335 386 324 375 324 361 c 0
 EndSplineSet
-Validated: 1
 EndChar
 
 StartChar: uniE00C
@@ -1635,6 +1634,7 @@ SplineSet
  219 494 190 636 186 649 c 1
  176 642 165 642 160 642 c 0
 EndSplineSet
+Validated: 1
 EndChar
 
 StartChar: uniE01C
@@ -1667,6 +1667,7 @@ SplineSet
  -191 272 -202 272 -207 272 c 0
  -227 272 -256 283 -256 310 c 0
 EndSplineSet
+Validated: 1
 EndChar
 
 StartChar: uniE01E

@@ -32,7 +32,8 @@ function fixture(){
   const font=fs.readFileSync(path.join(__dirname,'fixtures/Norin.ttf')).toString('base64');
   return `<!doctype html><meta charset="utf-8"><style>body{font:20px Arial}p{line-height:40px}</style>
   <p id="text">Hello world! 123 — &lt; &gt; 😀</p><p><a id="url">https://example.com</a></p><code id="code">hello world</code>
-  <textarea id="input">hello world</textarea><div id="editor" contenteditable="true">hello world</div>
+  <p id="small" style="font-size:12px">small words</p><p id="large" style="font-size:24px">large words</p><div id="smallEditor" contenteditable="true" style="font-size:10px">small editor</div>
+  <textarea id="input" style="font-size:12px">hello world</textarea><div id="editor" contenteditable="true">hello world</div>
   <script>window.errors=[];addEventListener('error',e=>errors.push(e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));
   GM_xmlhttpRequest=o=>{window.request={url:o.url,type:o.responseType};const bytes=Uint8Array.from(atob('${font}'),c=>c.charCodeAt(0));setTimeout(()=>o.onload({status:200,response:bytes.buffer}),0)};</script><script>${script}</script>`;
 }
@@ -62,16 +63,22 @@ async function main(){
       const style=t.renderCSS;
       const measured=document.createElement('div');measured.style.cssText='font:20px Arial';const sample=render('bdf');measured.append(sample);document.querySelector('#norin-userscript-layer').shadowRoot.append(measured);
       const glyph=sample.querySelector('.norin-character');const font=getComputedStyle(glyph).fontFamily;measured.remove();
-      return {all,block,accented,untouched,font,normalization:t.normalizeText('“hello”—world… 123'),original:document.querySelector('#text').textContent,
+      return {all,block,accented,untouched,font,normalization:t.normalizeText('“hello”—world… 123'),yTranslations:['boy','boys','toys','days','keys','happy','yes','yard','beyond'].map(word=>t.normalizeText(word)),original:document.querySelector('#text').textContent,
         request,errors,noSVG:[...t.templates.values()].filter(t=>t.ready).every(t=>!t.node.querySelector('svg,img')),fontRange:[...document.fonts].find(f=>f.family==='NorinEverywhere')?.unicodeRange,
         noPlacement:!style.includes('punct-')&&!style.includes('sinogram'),urlTracked:!!t.textNodes.get(document.querySelector('#url').firstChild)?.words.length,codeTracked:t.textNodes.has(document.querySelector('#code').firstChild)};
     })()`,sessionId);
     assert.equal(result.all,true);assert.deepEqual(result.block,[0xe02c,0xe030,0xe034]);assert.deepEqual(result.accented,[0xe02c,0xe003]);
+    assert.deepEqual(result.yTranslations,['boi','bois','tois','dais','keis','hapi','yes','yard','beyond']);
     assert.equal(result.untouched,true);assert.equal(result.font,'NorinEverywhere');assert.equal(result.normalization,'“helo”—world… 123');
     assert.equal(result.original,'Hello world! 123 — < > 😀');assert.equal(result.request.type,'arraybuffer');assert.match(result.fontRange,/E000-E061/i);
     assert.deepEqual(result.errors,[]);assert.equal(result.noSVG,true);assert.equal(result.noPlacement,true);assert.equal(result.urlTracked,false);assert.equal(result.codeTracked,false);
     await delay(300);
     assert.ok(await client.evaluate("CSS.highlights.get('norin-original')?.size>0",sessionId),'overlays hide original text');
+    const sizes=await client.evaluate(`(()=>{
+      const size=id=>{const record=norinTest.textNodes.get(document.getElementById(id).firstChild);return parseFloat(getComputedStyle(record.words[0].glyph).fontSize)};
+      return {small:size('small'),large:size('large'),editor:size('smallEditor'),input:parseFloat(getComputedStyle(norinTest.controls.get(document.querySelector('#input')).view.mirror).fontSize),original:getComputedStyle(document.querySelector('#small')).fontSize};
+    })()`,sessionId);
+    assert.deepEqual(sizes,{small:18,large:24,editor:18,input:18,original:'12px'});
     await client.evaluate("const input=document.querySelector('#input');input.value='new words!';input.dispatchEvent(new Event('input',{bubbles:true}));",sessionId);await delay(200);
     assert.equal(await client.evaluate("norinTest.controls.get(document.querySelector('#input')).value",sessionId),'new words!');
     await client.evaluate('norinTest.toggle()',sessionId);assert.equal(await client.evaluate("CSS.highlights.has('norin-original')",sessionId),false);
