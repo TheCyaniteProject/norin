@@ -7,41 +7,12 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_registerMenuCommand
 // @connect      raw.githubusercontent.com
-// @version      2.7.12
-// @description  English-to-Norin SVG overlays, including Discord PWA. Original text and input values stay English.
+// @version      3.0.0
+// @description  English-to-Norin font overlays, including Discord PWA. Original text and input values stay English.
 // ==/UserScript==
 
 (() => {
 'use strict';
-// Read only the glyph format's inert SVG geometry. Constructing nodes directly
-// avoids HTML/XML parsing sinks on sites enforcing Trusted Types (YouTube).
-const svgTags=new Set(['svg','g','path','circle','ellipse','rect','line','polyline','polygon']);
-const svgAttributes=new Set(['viewBox','width','height','d','points','transform','x','y','x1','y1','x2','y2','cx','cy','r','rx','ry','preserveAspectRatio']);
-function parseSVG(source){
-  if(/<!DOCTYPE|<!ENTITY/i.test(source))throw new Error('Unsupported glyph XML declaration');
-  const clean=String(source).replace(/<!--[\s\S]*?-->|<\?[\s\S]*?\?>/g,'');
-  const stack=[];let root=null;
-  const tags=/<(\/?)([\w:.-]+)((?:"[^"]*"|'[^']*'|[^'">])*)>/g;
-  for(const match of clean.matchAll(tags)){
-    const [,closing,name,attributes]=match;
-    if(closing){if(stack.pop()?.name!==name)throw new Error('Unbalanced glyph SVG');continue;}
-    const parent=stack.at(-1),allowed=svgTags.has(name)&&(!parent||parent.node);
-    const node=allowed?document.createElementNS('http://www.w3.org/2000/svg',name):null;
-    if(!parent){if(root||name!=='svg')throw new Error('Invalid glyph SVG');root=node;}
-    if(node){
-      for(const attribute of attributes.matchAll(/([\w:.-]+)\s*=\s*("[^"]*"|'[^']*')/g)){
-        const key=attribute[1],value=attribute[2].slice(1,-1);
-        // Geometry needs no entities, URLs, event handlers, styles or references.
-        if(svgAttributes.has(key)&&!/[&<>]|url\s*\(/i.test(value))node.setAttribute(key,value);
-      }
-      parent?.node?.append(node);
-    }
-    if(!/\/\s*$/.test(attributes))stack.push({name,node});
-  }
-  if(!root||stack.length)throw new Error('Invalid glyph SVG');
-  return root;
-}
-const GLYPH_STROKE_WIDTH = 22;
 let phoneticMap;
 let phoneticKeys = [];
 const bundledMappings = {
@@ -415,253 +386,16 @@ const bundledMappings = {
       "replace": "i"
     }
   },
-  "a": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/a.svg",
-    "mark": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/a_l.svg",
-    "scale": 1
-  },
-  "e": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/e.svg",
-    "mark": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/e_l.svg",
-    "scale": 1
-  },
-  "i": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/i.svg",
-    "mark": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/i_l.svg",
-    "scale": 1
-  },
-  "o": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/o.svg",
-    "mark": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/o_l.svg",
-    "scale": 1
-  },
-  "u": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/u.svg",
-    "mark": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/u_l.svg",
-    "scale": 1
-  },
-  "b": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/b.svg",
-    "scale": 1
-  },
-  "k": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/k.svg",
-    "scale": 1
-  },
-  "d": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/d.svg",
-    "scale": 1
-  },
-  "f": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/f.svg",
-    "scale": 1
-  },
-  "g": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/g.svg",
-    "scale": 1
-  },
-  "h": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/h.svg",
-    "scale": 1
-  },
-  "j": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/j.svg",
-    "scale": 1
-  },
-  "l": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/l.svg",
-    "scale": 1
-  },
-  "m": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/m.svg",
-    "scale": 1
-  },
-  "n": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/n.svg",
-    "scale": 1
-  },
-  "p": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/p.svg",
-    "scale": 1
-  },
-  "r": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/r.svg",
-    "scale": 1
-  },
-  "s": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/s.svg",
-    "scale": 1
-  },
-  "t": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/t.svg",
-    "scale": 1
-  },
-  "v": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/v.svg",
-    "scale": 1
-  },
-  "w": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/w.svg",
-    "scale": 1
-  },
-  "y": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/y.svg",
-    "scale": 1
-  },
-  "z": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/z.svg",
-    "scale": 1
-  },
-  "th": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/th.svg",
-    "scale": 1
-  },
-  "sh": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/sh.svg",
-    "scale": 1
-  },
-  "ch": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/ch.svg",
-    "scale": 1
-  },
-  "ng": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/ng.svg",
-    "scale": 1
-  },
-  "air": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/air.svg",
-    "scale": 1
-  },
-  "au": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/au.svg",
-    "scale": 1
-  },
-  "ee": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/ee.svg",
-    "scale": 1
-  },
-  "oo": {
-    "svg": "https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/glyphs/oo.svg",
-    "scale": 1
-  }
 };
-const defaultReplacements = [
-  ['\u2019', "'"],
-  ['\u2018', "'"],
-  ['\u201C', '"'],
-  ['\u201D', '"'],
-  ['\u2013', '-'],
-  ['\u2014', '-'],
-  ['\u2026', '...'],
-  ['\u00A0', ' ']
-];
+const FONT_URL='https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/Norin.ttf';
+const fontCodes=Object.create(null);
+for(const [keys,start,stride] of [
+  [['a','e','i','o','u'],0xE000,4],
+  [['air','au','ch','ee','ng','oo','sh','th'],0xE014,3],
+  [['b','d','f','g','h','j','k','l','m','n','p','r','s','t','v','w','y','z'],0xE02C,3]
+])keys.forEach((key,index)=>{fontCodes[key]={code:start+index*stride,mark:stride===4};});
+const defaultReplacements = [];
 
-// apply outline style to an SVG element: make it lineart (no fill) and stroked
-function applyOutlineToSVG(svg) {
-  if (!svg || !svg.querySelector) return;
-  try {
-    const cssStroke = String(GLYPH_STROKE_WIDTH);
-
-    svg.removeAttribute('fill');
-    svg.removeAttribute('style');
-    svg.style.setProperty('fill', 'none', 'important');
-    svg.style.setProperty('stroke', 'currentColor', 'important');
-    svg.style.setProperty('stroke-width', cssStroke, 'important');
-    svg.style.setProperty('stroke-linejoin', 'round', 'important');
-    svg.style.setProperty('stroke-linecap', 'round', 'important');
-    svg.style.removeProperty('vector-effect');
-
-    const elems = svg.querySelectorAll('path, circle, rect, ellipse, polygon, polyline, g');
-    for (const el of elems) {
-      try {
-        el.removeAttribute('fill');
-        el.removeAttribute('stroke');
-        el.removeAttribute('style');
-        el.style.setProperty('fill', 'none', 'important');
-        el.style.setProperty('stroke', 'currentColor', 'important');
-        el.style.setProperty('stroke-width', cssStroke, 'important');
-        el.style.setProperty('stroke-linejoin', 'round', 'important');
-        el.style.setProperty('stroke-linecap', 'round', 'important');
-        el.style.removeProperty('vector-effect');
-      } catch (e) {}
-    }
-  } catch (e) {
-    console.warn('applyOutlineToSVG failed', e);
-  }
-}
-
-// parse a CSS transform matrix string like 'matrix(a,b,c,d,tx,ty)' and return scale (approx)
-function computeScaleFromTransform(transformStr) {
-  try {
-    if (!transformStr || transformStr === 'none') return 1;
-    const m = transformStr.match(/matrix\(([^)]+)\)/);
-    if (!m) return 1;
-    const parts = m[1].split(',').map(s => parseFloat(s.trim()));
-    if (parts.length >= 6) {
-      const a = parts[0], b = parts[1];
-      const scaleX = Math.hypot(a, b);
-      return scaleX || 1;
-    }
-  } catch (e) {}
-  return 1;
-}
-
-function setStrokeWidthOnSVG(svg, px) {
-  if (!svg) return;
-  try {
-    const val = String(px);
-    svg.style.setProperty('stroke-width', val, 'important');
-    const elems = svg.querySelectorAll('path, circle, rect, ellipse, polygon, polyline');
-    for (const el of elems) {
-      try {
-        el.style.setProperty('stroke-width', val, 'important');
-      } catch (e) {}
-    }
-  } catch (e) {}
-}
-
-// adjust stroke width of svg children inside a sinogram block so visual stroke matches full glyphs
-function adjustStrokeForBlock(block) {
-  try {
-    const base = Number(GLYPH_STROKE_WIDTH) || 2;
-    const wrappers = block.querySelectorAll('.glyph-wrapper');
-    for (const w of wrappers) {
-      const cs = window.getComputedStyle(w);
-      const scale = computeScaleFromTransform(cs.transform);
-      const svgs = w.querySelectorAll('svg');
-      for (const s of svgs) {
-        s.style.removeProperty('vector-effect');
-        setStrokeWidthOnSVG(s, base / scale);
-      }
-    }
-  } catch (e) {
-    console.warn('adjustStrokeForBlock failed', e);
-  }
-}
-
-// apply global stroke width to all SVGs under a container and fix sinogram blocks
-function applyGlobalStrokeToContainer(root) {
-  if (!root) return;
-  try {
-    const svgs = root.querySelectorAll('svg');
-    for (const s of svgs) {
-      try {
-        s.style.removeProperty('vector-effect');
-        setStrokeWidthOnSVG(s, GLYPH_STROKE_WIDTH);
-      } catch (e) {}
-    }
-    const blocks = root.querySelectorAll('.sinogram');
-    for (const b of blocks) {
-      try {
-        adjustStrokeForBlock(b);
-      } catch (e) {}
-    }
-  } catch (e) {
-    console.warn('applyGlobalStrokeToContainer failed', e);
-  }
-}
-
-// compiled ordered replacement rules (each { re: RegExp, repl: string })
 let replacementRules = [];
 
 function buildReplacementRules(map) {
@@ -678,6 +412,7 @@ function buildReplacementRules(map) {
   if (map && map.replacements && typeof map.replacements === 'object') {
     for (const [key, val] of Object.entries(map.replacements)) {
       if (typeof val === 'string') {
+        if(!/^[a-z]+$/i.test(key))continue;
         rules.push({ re: new RegExp(escapeRegex(key), 'gu'), repl: val });
         continue;
       }
@@ -710,199 +445,6 @@ function buildReplacementRules(map) {
   return rules;
 }
 
-function createLiteralNode(text) {
-  if (text == null || text === '') {
-    return document.createTextNode('');
-  }
-
-  const apostrophes = new Set(["'", '’', 'ʼ']);
-  const hyphens = new Set(['-', '‐', '‑', '‒', '–', '—']);
-  const openPunct = new Set(['(', '[', '{', '“', '‘', '«']);
-  const closePunct = new Set([')', ']', '}', ',', '.', ';', ':', '!', '?', '”', '»']);
-  const neutralPunct = new Set(['"', '/', '\\', '|', '·', '•']);
-
-  const isSpecialPunct =
-    apostrophes.has(text) ||
-    hyphens.has(text) ||
-    openPunct.has(text) ||
-    closePunct.has(text) ||
-    neutralPunct.has(text);
-
-  let isGeneralPunct = false;
-  try {
-    isGeneralPunct = /^[\p{P}\p{S}]$/u.test(text);
-  } catch (e) {}
-
-  if (!isSpecialPunct && !isGeneralPunct) {
-    return document.createTextNode(text);
-  }
-
-  const span = document.createElement('span');
-  span.className = 'literal-token';
-  span.textContent = text;
-  if (text === '<' || text === '>') span.classList.add('punct-angle');
-  if (text === '—' || text === '/' || text === '\\' || text === '|' || text === ':' || text === ';') span.classList.add('punct-spaced');
-
-  if (apostrophes.has(text)) {
-    span.classList.add('punct-joiner', 'punct-apostrophe');
-  } else if (hyphens.has(text)) {
-    span.classList.add('punct-joiner', 'punct-hyphen');
-  } else if (openPunct.has(text)) {
-    span.classList.add('punct-open');
-  } else if (closePunct.has(text)) {
-    span.classList.add('punct-close');
-  } else {
-    span.classList.add('punct-neutral');
-  }
-
-  return span;
-}
-
-function createGlyphNode(token) {
-  let text, entry, accents;
-  if (typeof token === 'string') {
-    text = token;
-    entry = phoneticMap ? phoneticMap[token] : null;
-    accents = [];
-  } else {
-    text = token.text;
-    entry = token.entry || (phoneticMap ? phoneticMap[token.text] : null);
-    accents = token.accents || [];
-  }
-
-  // IMPORTANT:
-  // Unmapped characters should NOT be wrapped in .glyph-wrapper,
-  // because that forces punctuation into glyph-cell layout.
-  if (!entry) {
-    let literal=createLiteralNode(text);
-    if(typeof token==='object'&&Number.isInteger(token.start)){
-      if(literal.nodeType===Node.TEXT_NODE&&/^[0-9]$/.test(text)){const span=document.createElement('span');span.className='literal-source';span.style.display='inline-block';span.append(literal);literal=span;}
-      if(literal instanceof Element){literal.dataset.norinStart=String(token.start);literal.dataset.norinEnd=String(token.end);}
-    }
-    return literal;
-  }
-
-  const wrapper = document.createElement('span');
-  wrapper.className = 'glyph-wrapper';
-  wrapper.dataset.token = text;
-  wrapper.dataset.hasAccent = 'false';
-  if(typeof token==='object'&&Number.isInteger(token.start)){wrapper.dataset.norinStart=String(token.start);wrapper.dataset.norinEnd=String(token.baseEnd??token.end);if(Number.isInteger(token.accentStart)){wrapper.dataset.accentStart=String(token.accentStart);wrapper.dataset.accentEnd=String(token.end);}}
-
-  let svgText = null;
-  let pathData = null;
-  let paddingLeft = 0;
-  let paddingRight = 0;
-  let offsetX = 0;
-  let offsetY = 0;
-  let scale = 1;
-
-  if (typeof entry === 'string') {
-    if (entry.trim().startsWith('<')) svgText = entry;
-    else pathData = entry;
-  } else if (typeof entry === 'object' && entry !== null) {
-    if (entry.svg && typeof entry.svg === 'string') {
-      if (entry.svg.trim().startsWith('<')) svgText = entry.svg;
-      else pathData = entry.svg;
-    }
-    paddingLeft = Number(entry.paddingLeft ?? entry.padding ?? 0) || 0;
-    paddingRight = Number(entry.paddingRight ?? 0) || 0;
-    offsetX = Number(entry.offsetX ?? 0) || 0;
-    offsetY = Number(entry.offsetY ?? 0) || 0;
-    scale = Number(entry.scale ?? 1) || 1;
-  }
-
-  if (paddingLeft) wrapper.style.paddingLeft = `${paddingLeft}em`;
-  if (paddingRight) wrapper.style.paddingRight = `${paddingRight}em`;
-
-  if (svgText) {
-    const svg = parseSVG(svgText);
-    if (svg) {
-      svg.classList.add('glyph');
-      svg.style.width = '100%';
-      svg.style.height = '100%';
-      svg.style.transformOrigin = '50% 50%';
-      applyOutlineToSVG(svg);
-      if (offsetX || offsetY || scale !== 1) {
-        svg.style.transform = `translate(${offsetX}em, ${offsetY}em) scale(${scale})`;
-      }
-      wrapper.appendChild(svg);
-
-      for (const a of accents) {
-        try {
-          const m = parseSVG(a);
-          if (m) {
-            m.classList.add('accent');
-            applyOutlineToSVG(m);
-            m.style.pointerEvents = 'none';
-            wrapper.appendChild(m);
-            wrapper.dataset.hasAccent = 'true';
-          }
-        } catch (e) {
-          console.warn('Failed to parse accent svg', e);
-        }
-      }
-      return wrapper;
-    }
-  }
-
-  if (pathData) {
-    const ns = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('viewBox', '0 0 100 100');
-    svg.classList.add('glyph');
-    svg.style.width = '100%';
-    svg.style.height = '100%';
-
-    const path = document.createElementNS(ns, 'path');
-    path.setAttribute('d', pathData);
-    path.removeAttribute('fill');
-    path.removeAttribute('style');
-    path.style.setProperty('fill', 'none', 'important');
-    path.style.setProperty('stroke', 'currentColor', 'important');
-    path.style.setProperty('stroke-width', String(GLYPH_STROKE_WIDTH), 'important');
-    path.style.setProperty('stroke-linejoin', 'round', 'important');
-    path.style.setProperty('stroke-linecap', 'round', 'important');
-    svg.appendChild(path);
-
-    if (offsetX || offsetY || scale !== 1) {
-      svg.style.transform = `translate(${offsetX}em, ${offsetY}em) scale(${scale})`;
-      svg.style.transformOrigin = '50% 50%';
-    }
-
-    wrapper.appendChild(svg);
-
-    for (const a of accents) {
-      try {
-        const m = parseSVG(a);
-        if (m) {
-          m.classList.add('accent');
-          applyOutlineToSVG(m);
-          m.style.pointerEvents = 'none';
-          wrapper.appendChild(m);
-          wrapper.dataset.hasAccent = 'true';
-        }
-      } catch (e) {
-        console.warn('Failed to parse accent svg', e);
-      }
-    }
-
-    return wrapper;
-  }
-
-  // If an entry exists but is malformed/unusable, fall back to plain literal text
-  // instead of forcing it through glyph-wrapper layout.
-  return createLiteralNode(text);
-}
-
-function createPlainWrapperForChar(ch) {
-  const w = document.createElement('span');
-  w.className = 'glyph-wrapper';
-  w.dataset.token = ch;
-  w.dataset.isAccent = 'false';
-  w.textContent = ch;
-  return w;
-}
-
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -924,267 +466,52 @@ function normalizeText(text) {
   return text;
 }
 
-// Segment text into normal and code (inline/backtick and fenced triple backticks)
-function segmentByBackticks(input) {
-  const out = [];
-  let i = 0;
-  const n = input.length;
-  while (i < n) {
-    const pos3 = input.indexOf('```', i);
-    const pos1 = input.indexOf('`', i);
-    let nextPos = -1;
-    let type = null;
-    if (pos3 !== -1 && (pos1 === -1 || pos3 <= pos1)) {
-      nextPos = pos3;
-      type = 'fence3';
-    } else if (pos1 !== -1) {
-      nextPos = pos1;
-      type = 'tick1';
-    }
-
-    if (nextPos === -1) {
-      out.push({ type: 'text', text: input.slice(i) });
-      break;
-    }
-
-    if (nextPos > i) {
-      out.push({ type: 'text', text: input.slice(i, nextPos) });
-    }
-
-    if (type === 'fence3') {
-      const end = input.indexOf('```', nextPos + 3);
-      if (end === -1) {
-        // unmatched: treat rest as code block
-        out.push({ type: 'code-block', text: input.slice(nextPos + 3) });
-        i = n;
-      } else {
-        const body = input.slice(nextPos + 3, end);
-        out.push({ type: 'code-block', text: body });
-        i = end + 3;
-      }
-      continue;
-    }
-
-    if (type === 'tick1') {
-      const end = input.indexOf('`', nextPos + 1);
-      if (end === -1) {
-        // unmatched: treat as literal
-        out.push({ type: 'text', text: '`' });
-        i = nextPos + 1;
-      } else {
-        const body = input.slice(nextPos + 1, end);
-        out.push({ type: 'code-inline', text: body });
-        i = end + 1;
-      }
-      continue;
-    }
-  }
-  return out;
-}
-
-// Render converted content into a given element (like content or notepadOutput)
+// Glyph variants carry their own placement and advance widths in Norin.ttf.
 function renderInto(target, rawText, opts = {}) {
-  if (!target) return;
-  try {
-    target.setAttribute('data-raw', rawText);
-  } catch (e) {}
-
-  if (!phoneticMap) {
-    target.textContent = rawText;
-    return;
-  }
-
-  const readerMode = Boolean(opts.readerMode);
-
-  function renderMappedSegment(targetEl, text) {
-    const normalized = opts.alreadyNormalized ? text : normalizeText(text);
-    const parts = normalized.split(/(\s+)/);
-    let partOffset=0;
-    for (const part of parts) {
-      const sourceOffset=partOffset;partOffset+=part.length;
-      if (!part) continue;
-
-      if (/^\s+$/.test(part)) {
-        for (const ch of part) {
-          if (ch === '\n') {
-            targetEl.appendChild(document.createElement('br'));
-          } else if (ch === ' ') {
-            const sp = document.createElement('span');
-            sp.className = 'space';
-            sp.textContent = '\u00a0';
-            targetEl.appendChild(sp);
-          } else {
-            const sp = document.createElement('span');
-            sp.className = 'space';
-            sp.textContent = ch;
-            targetEl.appendChild(sp);
-          }
-        }
-        continue;
-      }
-
-      const tokens = [];
-      const isWordAllCaps = readerMode && (part === part.toUpperCase()) && /[A-Z]/.test(part);
-      for (let i = 0; i < part.length;) {
-        let matched = false;
-        for (const key of phoneticKeys) {
-          const substr = part.substr(i, key.length);
-          if (substr.toLowerCase() === key.toLowerCase()) {
-            const entry = phoneticMap[key];
-            if (entry && entry.mark) {
-              const prev = tokens[tokens.length - 1];
-              const prevIsPunct = !prev || /^[^\p{L}\p{N}]+$/u.test(prev.text);
-              const prevHasAccent = prev && prev.accents && prev.accents.length > 0;
-              const isVowelKey = key.length === 1 && /[aeiouy]/i.test(key);
-              const matchedIsUpper = substr === substr.toUpperCase() && /[A-Z]/.test(substr);
-              if (prev && !prevIsPunct && !prevHasAccent && !(readerMode && isVowelKey && matchedIsUpper)) {
-                prev.accents.push(entry.mark);prev.accentStart=sourceOffset+i;prev.end=sourceOffset+i+key.length;
-                i += key.length;
-                matched = true;
-                break;
-              }
-            }
-            tokens.push({ text: key, entry: entry, accents: [],start:sourceOffset+i,baseEnd:sourceOffset+i+key.length,end:sourceOffset+i+key.length });
-            i += key.length;
-            matched = true;
-            break;
-          }
-        }
-
-        if (!matched) {
-          const ch = part[i];
-          const entry = phoneticMap && phoneticMap[ch] ? phoneticMap[ch] : null;
-          tokens.push({ text: ch, entry: entry, accents: [],start:sourceOffset+i,baseEnd:sourceOffset+i+1,end:sourceOffset+i+1 });
-          i += 1;
-        }
-      }
-
-      let output = targetEl;
-      if (tokens.length) {
-        const wordWrapper = document.createElement('span');
-        wordWrapper.className = 'norin-word';
-        wordWrapper.dataset.latin = part;
-        wordWrapper.style.cursor = 'help';
-        targetEl.appendChild(wordWrapper);
-        output = wordWrapper;
-      }
-
-      const glyphBuffer = [];
-      const flushBufferAsSingles = () => {
-        for (const gt of glyphBuffer) output.appendChild(createGlyphNode(gt));
-        glyphBuffer.length = 0;
-      };
-
-      for (const tok of tokens) {
-        if (opts.unstacked || readerMode && isWordAllCaps) {
-          output.appendChild(createGlyphNode(tok));
-          continue;
-        }
-
-        const isGlyph = Boolean(tok.entry);
-        if (!isGlyph) {
-          if (glyphBuffer.length > 0) flushBufferAsSingles();
-          output.appendChild(createGlyphNode(tok));
-          continue;
-        }
-
-        glyphBuffer.push(tok);
-        if (glyphBuffer.length === 3) {
-          const block = document.createElement('span');
-          block.className = 'sinogram';
-
-          const t1 = createGlyphNode(glyphBuffer[0]);
-          t1.classList.add('sin-first');
-          block.appendChild(t1);
-
-          const t2 = createGlyphNode(glyphBuffer[1]);
-          t2.classList.add('sin-right');
-          block.appendChild(t2);
-
-          const t3 = createGlyphNode(glyphBuffer[2]);
-          t3.classList.add('sin-below');
-          block.appendChild(t3);
-
-          output.appendChild(block);
-          // Stroke compensation is applied once when caching the template.
-          glyphBuffer.length = 0;
-        }
-      }
-
-      if (glyphBuffer.length > 0) flushBufferAsSingles();
-    }
-  }
-
   target.replaceChildren();
-  const segments = segmentByBackticks(String(rawText || ''));
-  for (const seg of segments) {
-    if (!seg || typeof seg.text !== 'string') continue;
-    if (seg.type === 'text') {
-      renderMappedSegment(target, seg.text);
-      continue;
+  const text=opts.alreadyNormalized?rawText:normalizeText(rawText);
+  const word=document.createElement('span');word.className='norin-word';target.append(word);
+  const tokens=[];
+  for(let i=0;i<text.length;){
+    const key=phoneticKeys.find(key=>text.slice(i,i+key.length).toLowerCase()===key);
+    if(!key){
+      const literal=String.fromCodePoint(text.codePointAt(i));
+      tokens.push({text:literal,start:i,end:i+literal.length});i+=literal.length;continue;
     }
-    if (seg.type === 'code-inline') {
-      const span = document.createElement('span');
-      span.className = 'norin-code-inline';
-      span.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace';
-      span.style.background = 'transparent';
-      span.style.border = 'none';
-      span.textContent = seg.text;
-      target.appendChild(span);
-      continue;
-    }
-    if (seg.type === 'code-block') {
-      const pre = document.createElement('pre');
-      pre.className = 'norin-code-block';
-      pre.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace';
-      pre.style.whiteSpace = 'pre-wrap';
-      pre.style.border = '1px solid var(--border)';
-      pre.style.padding = '10px 12px';
-      pre.style.borderRadius = '6px';
-      pre.style.background = 'var(--panel-bg)';
-      pre.style.color = 'var(--text)';
-      pre.style.margin = '8px 0';
-      pre.textContent = seg.text.replace(/^\n/, '');
-      target.appendChild(pre);
-      continue;
-    }
+    const entry=fontCodes[key],previous=tokens.at(-1),upper=text.slice(i,i+key.length)===key.toUpperCase();
+    if(entry.mark&&previous?.key&&!previous.accent&&!(opts.readerMode&&upper)){
+      previous.accent={code:entry.code+3,start:i,end:i+key.length};
+    }else tokens.push({key,code:entry.code,start:i,end:i+key.length});
+    i+=key.length;
+  }
+  function emit(token,variant=0){
+    const span=document.createElement('span');
+    span.className=token.key?'norin-character':'literal-source';
+    span.dataset.norinStart=String(token.start);span.dataset.norinEnd=String(token.end);
+    span.textContent=token.key?String.fromCodePoint(token.code+variant):token.text;word.append(span);
+    if(token.accent){const accent=document.createElement('span');accent.className='norin-character';accent.dataset.norinStart=String(token.accent.start);accent.dataset.norinEnd=String(token.accent.end);accent.textContent=String.fromCodePoint(token.accent.code);word.append(accent);}
+  }
+  for(let i=0;i<tokens.length;){
+    if(!opts.unstacked&&!(opts.readerMode&&text===text.toUpperCase()&&/[A-Z]/.test(text))&&tokens.slice(i,i+3).length===3&&tokens.slice(i,i+3).every(t=>t.key)){
+      emit(tokens[i]);emit(tokens[i+1],1);emit(tokens[i+2],2);i+=3;
+    }else emit(tokens[i++]);
   }
 }
 
-
-const glyphCSS = "        .glyph-wrapper {\n            display: inline-block;\n            width: 1em;\n            height: 1em;\n            line-height: 1em;\n            vertical-align: baseline;\n            position: relative;\n            overflow: visible;\n            margin-right: var(--glyph-tighten-single);\n            color: currentColor;\n        }\n\n        .glyph {\n            width: 1em;\n            height: 1em;\n            display: block;\n            overflow: visible;\n        }\n\n        /* ensure SVGs don't introduce descender space */\n        .glyph-wrapper svg {\n            display: block;\n            width: 100%;\n            height: 100%;\n        }\n\n        /* force glyphs and accents to use current theme color */\n        .glyph-wrapper svg,\n        .glyph-wrapper svg * {\n            fill: currentColor !important;\n            stroke: currentColor !important;\n        }\n\n        .glyph-wrapper .accent,\n        .glyph-wrapper .accent * {\n            fill: currentColor !important;\n            stroke: currentColor !important;\n        }\n\n        /* accent marks are absolutely positioned above the previous glyph */\n        .glyph-wrapper .accent {\n            position: absolute;\n            left: 50%;\n            transform: translateX(-50%);\n            top: -0.55em;\n            width: 0.9em;\n            height: 0.9em;\n            pointer-events: none;\n            display: block;\n        }\n\n        .sinogram .sin-right .accent {\n            top: -1em;\n            width: 1.2em;\n            height: 1.2em;\n        }\n\n        /* For sinogram 3rd character, place accent top-right (slightly to the right) for readability */\n        .sinogram .sin-below .accent {\n            left: 100%;\n            top: -0.3em;\n            width: 1em;\n            height: 1em;\n        }\n\n        /* Sinogram block layout: align to baseline and position children relative to first glyph */\n        .sinogram {\n            display: inline-block;\n            position: relative;\n            width: 1.3em;\n            height: 1.0em;\n            vertical-align: baseline;\n            margin-right: var(--glyph-tighten);\n            overflow: visible;\n        }\n\n        .sinogram .sin-first {\n            position: absolute;\n            left: 0;\n            top: 0;\n            width: 1.1em;\n            height: 1em;\n        }\n\n        .sinogram .sin-first .glyph {\n            width: 100%;\n            height: 100%;\n        }\n\n        .sinogram .sin-right {\n            position: absolute;\n            left: 0.8em;\n            top: 0.01em;\n            width: 1em;\n            height: 1em;\n            transform-origin: 0 0;\n            transform: scale(0.5);\n        }\n\n        .sinogram .sin-below {\n            position: absolute;\n            left: 0.8em;\n            top: 0.55em;\n            width: 1em;\n            height: 1em;\n            transform-origin: 0 0;\n            transform: scale(0.5);\n        }\n\n        /* Plain punctuation/text emitted by renderer.js */\n        .literal-token {\n            display: inline-block;\n            width: auto;\n            height: auto;\n            line-height: inherit;\n            vertical-align: baseline;\n            margin: 0;\n            padding: 0;\n            color: inherit;\n        }\n\n        /*\n  Punctuation tuning:\n  - apostrophes should stay tight inside words: i'm, don't, we'll\n  - hyphens should not look like word breaks\n  - open/close punctuation gets very slight breathing room\n*/\n        .literal-token.punct-joiner {\n            margin-left: 0;\n            margin-right: 0;\n        }\n\n        .literal-token.punct-apostrophe {\n            margin-left: 0.6em;\n            margin-right: 0.45em;\n            position: relative;\n            top: -0.2em;\n        }\n\n        .literal-token.punct-hyphen {\n            margin-left: 0.6em;\n            margin-right: -0.15em;\n            position: relative;\n            top: -0.2em;\n        }\n\n        .literal-token.punct-open {\n            margin-left: 0.25em;\n            margin-right: -0.2em;\n            position: relative;\n            top: -0.25em;\n        }\n\n        .literal-token.punct-close {\n            margin-left: 0.25em;\n            margin-right: -0.2em;\n            position: relative;\n            top: -0.25em;\n        }\n\n        .literal-token.punct-neutral {\n            margin-left: 0.25em;\n            margin-right: -0.2em;\n            position: relative;\n            top: -0.2em;\n        }\n\n        /* If punctuation sits directly next to glyphs, tighten the join a bit */\n        .glyph-wrapper+.literal-token.punct-apostrophe,\n        .sinogram+.literal-token.punct-apostrophe {\n            margin-left: 0.25em;\n        }\n\n        .literal-token.punct-apostrophe+.glyph-wrapper,\n        .literal-token.punct-apostrophe+.sinogram {\n            margin-left: -0.6em;\n        }\n\n        .glyph-wrapper+.literal-token.punct-hyphen,\n        .sinogram+.literal-token.punct-hyphen {\n            margin-left: 0.25em;\n        }\n\n        .literal-token.punct-hyphen+.glyph-wrapper,\n        .literal-token.punct-hyphen+.sinogram {\n            margin-left: -0.02em;\n        }\n\n";
 let enabled=true;
 let floatingControl=null;
 const LIMITS={spellings:4000,shapes:1000,templates:2000,views:2500};
 const FRAME_BUDGET_MS=7;
-const GLYPH_SCALE=.72;
+const GLYPH_SCALE=1;
 const layer=document.createElement('div');
 layer.id='norin-userscript-layer';
 layer.setAttribute('aria-hidden','true');
 layer.style.cssText='position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;visibility:hidden;overflow:hidden';
 const shadow=layer.attachShadow({mode:'open'});
-const renderCSS=glyphCSS+`
+const renderCSS=`
 :host{all:initial;pointer-events:none}
-.norin-caret{position:absolute;width:1.5px;pointer-events:none;background:currentColor;animation:norin-caret-blink 1.1s steps(1,end) infinite;z-index:1}
-@keyframes norin-caret-blink{0%,45%{opacity:1}50%,100%{opacity:0}}
-@media(prefers-reduced-motion:reduce){.norin-caret{animation:none}}
-
 .norin-edit-word,.word{position:absolute;width:max-content;white-space:nowrap;transform-origin:0 0;line-height:1}
-.sinogram{width:calc(5em / 3)}
-.sinogram .sin-first{width:1em}
-.sinogram .sin-right,.sinogram .sin-below{left:1em;transform:scale(.666666667)}
-.sinogram .sin-right{top:-.1em}
-.sinogram .sin-below{top:.72em}
-.glyph-wrapper svg{overflow:visible}
-.glyph-wrapper .accent{top:-.65em}
-.sinogram .sin-right .accent{top:-.85em}
-.sinogram .sin-below .accent{top:-.75em}
-.norin-word{cursor:inherit!important}
-.norin-word .literal-token{margin-left:0!important;margin-right:0!important}
-.norin-word .punct-apostrophe{font-size:.75em;top:-.5em}
-.norin-word .punct-hyphen{font-size:.85em;top:-.08em}
-.norin-word .punct-angle{font-size:1.6em;top:-.08em}
-.space{display:inline-block;width:.6em}
+.norin-character{font-family:NorinEverywhere}
 .norin-caret{position:absolute;display:block;width:1.5px;pointer-events:none;user-select:none;animation:norin-caret-blink 1s step-end infinite;z-index:2}
 @keyframes norin-caret-blink{0%,45%{opacity:1}50%,100%{opacity:0}}
 @media(prefers-reduced-motion:reduce){.norin-caret{animation:none}}
@@ -1434,7 +761,7 @@ function wordPlan(text){
   if(plan){spellings.delete(text);spellings.set(text,plan);return plan;}
   if(text.includes('`'))plan={key:JSON.stringify(['code',text]),text,normalized:false};
   else{
-    const converted=normalizeText(text).replace(/--/g,'—').replace(/(?<=\p{L})[-‐‑‒–]|[-‐‑‒–](?=\p{L})/gu,'—'),layout=[];
+    const converted=normalizeText(text),layout=[];
     for(const part of converted.split(/(\s+)/)){
       if(!part)continue;
       if(/^\s+$/.test(part)){layout.push(['space',part]);continue;}
@@ -1459,7 +786,6 @@ function shapeFor(text,flat=false,normalized=false){
   const plan=flat||normalized?{key:JSON.stringify([flat?'editing':'fragment',text]),text,normalized:true}:wordPlan(text);let shape=shapes.get(plan.key);
   if(shape){shapes.delete(plan.key);shapes.set(plan.key,shape);return shape;}
   shape=document.createElement('div');shape.className='word';renderInto(shape,plan.text,{readerMode:true,alreadyNormalized:plan.normalized,unstacked:flat});
-  for(const svg of shape.querySelectorAll('.sin-right svg,.sin-below svg'))setStrokeWidthOnSVG(svg,GLYPH_STROKE_WIDTH*1.5);
   shapes.set(plan.key,shape);if(shapes.size>LIMITS.shapes)shapes.delete(shapes.keys().next().value);return shape;
 }
 function templateKey(text,cs,flat=false,normalized=false){return JSON.stringify([flat||normalized?JSON.stringify([flat?'editing':'fragment',text]):wordPlan(text).key,cs.fontFamily,cs.fontWeight,cs.fontStyle,cs.color,fontEpoch]);}
@@ -1469,65 +795,8 @@ function templateFor(text,cs,group,flat=false,normalized=false){
   t={key,text,flat,normalized,font:cs.fontFamily,weight:cs.fontWeight,fontStyle:cs.fontStyle,color:cs.color,width:null,node:null,ready:false,failed:false,waiters:new Set([group])};
   templates.set(key,t);if(templates.size>LIMITS.templates)templates.delete(templates.keys().next().value);return t;
 }
-// Measure painted strokes rather than the large margins in each source SVG page.
 function cellInk(cell){
-  let left=Infinity,right=-Infinity,top=Infinity,bottom=-Infinity;
-  for(const shape of cell.querySelectorAll('path,circle,ellipse,rect,line,polyline,polygon')){
-    try{
-      const box=shape.getBBox(),m=shape.getScreenCTM();if(!m)continue;
-      const x1=m.a*box.x+m.c*box.y+m.e,x2=m.a*(box.x+box.width)+m.c*box.y+m.e;
-      const x3=m.a*box.x+m.c*(box.y+box.height)+m.e,x4=m.a*(box.x+box.width)+m.c*(box.y+box.height)+m.e;
-      const cs=getComputedStyle(shape),stroke=cs.stroke==='none'?0:parseFloat(cs.strokeWidth)||0;
-      const y1=m.b*box.x+m.d*box.y+m.f,y2=m.b*(box.x+box.width)+m.d*box.y+m.f;
-      const y3=m.b*box.x+m.d*(box.y+box.height)+m.f,y4=m.b*(box.x+box.width)+m.d*(box.y+box.height)+m.f;
-      const pad=stroke*.5*Math.hypot(m.a,m.c),padY=stroke*.5*Math.hypot(m.b,m.d);
-      top=Math.min(top,Math.min(y1,y2,y3,y4)-padY);bottom=Math.max(bottom,Math.max(y1,y2,y3,y4)+padY);
-      left=Math.min(left,Math.min(x1,x2,x3,x4)-pad);right=Math.max(right,Math.max(x1,x2,x3,x4)+pad);
-    }catch(_){/* A malformed glyph falls back to its normal cell width. */}
-  }
-  if(!Number.isFinite(left)){
-    const range=document.createRange();range.selectNodeContents(cell);const rect=range.getBoundingClientRect();
-    if(rect.width){left=rect.left;right=rect.right;top=rect.top;bottom=rect.bottom;}else{const rect=cell.getBoundingClientRect();left=rect.left;right=rect.right;top=rect.top;bottom=rect.bottom;}
-  }
-  return {left,right,top,bottom};
-}
-function prepareWordMetrics(probe){
-  const words=[];
-  for(const word of probe.querySelectorAll('.norin-word')){
-    for(const node of [...word.childNodes])if(node.nodeType===Node.TEXT_NODE){
-      const span=document.createElement('span');span.className='literal-cell';span.style.display='inline-block';node.replaceWith(span);span.append(node);
-    }
-    const cells=[...word.children];
-    const baseline=document.createElement('span');baseline.style.cssText='display:inline-block;width:0;height:0;padding:0;margin:0';word.append(baseline);
-    words.push({word,cells,baseline});
-  }
-  return words;
-}
-function readWordMetrics(probe,words){
-  let width=probe.getBoundingClientRect().width;
-  for(const item of words){
-    const wordRect=item.word.getBoundingClientRect(),baseline=item.baseline.getBoundingClientRect().top;
-    let cursor=0,previous=null;item.positions=[];
-    for(const cell of item.cells){
-      const rect=cell.getBoundingClientRect(),ink=cellInk(cell);
-      const joiner=cell.matches('.punct-joiner'),previousJoiner=previous?.matches('.punct-joiner');
-      const gap=previous?(joiner||previousJoiner?5:14):0;
-      const padded=cell.classList.contains('punct-spaced');
-      const paddingLeft=padded?10:0;
-      const paddingRight=padded?(cell.textContent==='—'||cell.textContent==='|'?30:10):0;cursor+=gap+paddingLeft;
-      item.positions.push({cell,left:(cursor-(ink.left-rect.left))/100,top:(rect.top-baseline+100)/100});
-      cursor+=Math.max(0,ink.right-ink.left)+paddingRight;previous=cell;
-    }
-    item.width=cursor/100;width+=cursor-wordRect.width;
-  }
-  return Math.max(0,width)/100;
-}
-function applyWordMetrics(words){
-  for(const item of words){
-    item.baseline.remove();
-    setStyles(item.word,{display:'inline-block',position:'relative',verticalAlign:'baseline',height:'1em',width:`${item.width}em`});
-    for(const {cell,left,top}of item.positions)setStyles(cell,{position:'absolute',left:`${item.width?left/item.width*100:0}%`,top:`${top*100}%`,marginLeft:'0px',marginRight:'0px'});
-  }
+  const range=document.createRange();range.selectNodeContents(cell);return range.getBoundingClientRect();
 }
 function finishTemplates(list){
   const probes=[];
@@ -1536,52 +805,30 @@ function finishTemplates(list){
     const probe=shapeFor(t.text,t.flat,t.normalized).cloneNode(true);
     probe.style.cssText='position:absolute;visibility:hidden;font-size:100px;left:0;top:0;width:max-content;line-height:1';
     setStyles(probe,{fontFamily:t.font,fontWeight:t.weight,fontStyle:t.fontStyle,color:t.color});
-    const words=prepareWordMetrics(probe);shadow.append(probe);probes.push({t,probe,words});
+    shadow.append(probe);probes.push({t,probe});
   }
-  for(const {t,probe,words}of probes)t.width=readWordMetrics(probe,words);
-  for(const {words}of probes)applyWordMetrics(words);
-  // Record the painted vertical envelope once, including raised marks and lower stacks.
+  for(const {t,probe}of probes)t.width=probe.getBoundingClientRect().width/100;
+  // Cache text bounds for line alignment and source-offset hit testing.
   for(const {t,probe}of probes){
     const origin=probe.getBoundingClientRect();let top=Infinity,bottom=-Infinity;
     for(const word of probe.querySelectorAll('.norin-word'))for(const cell of word.children){
       const ink=cellInk(cell);top=Math.min(top,ink.top);bottom=Math.max(bottom,ink.bottom);
     }
     t.hits=[];
-    for(const wrapper of probe.querySelectorAll('.glyph-wrapper[data-norin-start]')){
-      for(const [selector,start,end]of [[':scope > svg.glyph',wrapper.dataset.norinStart,wrapper.dataset.norinEnd],[':scope > svg.accent',wrapper.dataset.accentStart,wrapper.dataset.accentEnd]]){
-        const element=wrapper.querySelector(selector);if(!element||start===undefined)continue;
-        const bounds=cellInk(element);t.hits.push({start:Number(start),end:Number(end),left:(bounds.left-origin.left)/100,right:(bounds.right-origin.left)/100,top:(bounds.top-origin.top)/100,bottom:(bounds.bottom-origin.top)/100});
-      }
-    }
-    for(const literal of probe.querySelectorAll('.literal-token[data-norin-start],.literal-source[data-norin-start]')){
+    for(const literal of probe.querySelectorAll('[data-norin-start]')){
       const bounds=cellInk(literal);t.hits.push({start:Number(literal.dataset.norinStart),end:Number(literal.dataset.norinEnd),left:(bounds.left-origin.left)/100,right:(bounds.right-origin.left)/100,top:(bounds.top-origin.top)/100,bottom:(bounds.bottom-origin.top)/100});
     }
     t.inkTop=Number.isFinite(top)?(top-origin.top)/100:0;
     t.inkBottom=Number.isFinite(bottom)?(bottom-origin.top)/100:1;
   }
   for(const {t,probe}of probes){
-    // New caret positions can use their tiny vector segment immediately while its image decodes.
-    if(t.flat){t.vectorNode=probe.cloneNode(true);t.vectorNode.removeAttribute('style');setStyles(t.vectorNode,{fontFamily:t.font,fontWeight:t.weight,fontStyle:t.fontStyle,color:t.color});}
-    // One image per word. Inline SVGs stay inside the image resource, not the page DOM.
-    const ns='http://www.w3.org/2000/svg',xh='http://www.w3.org/1999/xhtml';
-    const svg=document.createElementNS(ns,'svg'),fo=document.createElementNS(ns,'foreignObject');
-    const width=(Math.max(.01,t.width)+1)*100;
-    svg.setAttribute('width',String((Math.max(.01,t.width)+1)*32));svg.setAttribute('height','108.8');svg.setAttribute('viewBox',`0 0 ${width} 340`);
-    fo.setAttribute('width',String(width));fo.setAttribute('height','340');
-    const html=document.createElementNS(xh,'div'),css=document.createElementNS(xh,'style');css.textContent=renderCSS;
-    html.append(css);const painted=probe.cloneNode(true);painted.style.visibility='visible';painted.style.top='150px';painted.style.left='50px';html.append(painted);fo.append(html);svg.append(fo);
-    const image=new Image();image.alt='';image.draggable=false;
-    image.style.cssText=`position:absolute;left:-.5em;top:-1.5em;width:${t.width+1}em;height:3.4em;pointer-events:none`;
-    t.node=document.createElement('div');t.node.className='word';t.node.style.cssText=`width:${t.width}em;height:1em`;t.node.append(image);
-    image.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(svg));
-    const settle=failed=>{
-      if(t.ready)return;t.failed=failed;t.ready=true;t.vectorNode=null;
-      if(failed){t.node=probe.cloneNode(true);t.node.removeAttribute('style');setStyles(t.node,{fontFamily:t.font,fontWeight:t.weight,fontStyle:t.fontStyle,color:t.color});}
-      for(const group of t.waiters)if(group.element.isConnected&&!group.disposed)dirty(group);t.waiters.clear();
-    };
-    image.decode().then(()=>settle(false),()=>settle(true));probe.remove();
+    t.node=probe.cloneNode(true);t.node.removeAttribute('style');
+    setStyles(t.node,{fontFamily:t.font,fontWeight:t.weight,fontStyle:t.fontStyle,color:t.color});
+    t.ready=true;t.failed=false;
+    for(const group of t.waiters)if(group.element.isConnected&&!group.disposed)dirty(group);
+    t.waiters.clear();probe.remove();
   }
-  // Large paragraphs yield instead of generating hundreds of unique images in one task.
+  // Yield between batches of new text templates.
   for(const t of list)if(t.width===null)for(const group of t.waiters)if(group.near)dirty(group);
 }
 // Protect literal Markdown code before normalization/tokenization, including split text nodes.
@@ -2244,15 +1491,10 @@ function toggle(){
 }
 async function start(){
   if(!CSS.highlights||typeof Highlight==='undefined')throw new Error('Norin requires CSS Custom Highlight support.');
-  phoneticMap=structuredClone(bundledMappings);replacementRules=buildReplacementRules(phoneticMap);
+  phoneticMap={...fontCodes,replacements:bundledMappings.replacements};replacementRules=buildReplacementRules(phoneticMap);
   phoneticKeys=Object.keys(phoneticMap).filter(k=>k!=='replacements').sort((a,b)=>b.length-a.length);
-  const requests=new Map();
-  for(const key of phoneticKeys)for(const field of ['svg','mark']){
-    const url=phoneticMap[key][field];if(url&&!requests.has(url))requests.set(url,getRemote(url));
-  }
-  await Promise.all(phoneticKeys.map(async key=>{
-    for(const field of ['svg','mark'])if(phoneticMap[key][field])phoneticMap[key][field]=sanitizeSVG(await requests.get(phoneticMap[key][field]),field==='mark');
-  }));
+  const font=new FontFace('NorinEverywhere',await getRemote(FONT_URL),{unicodeRange:'U+E000-E061'});
+  await font.load();document.fonts.add(font);
   document.documentElement.append(pageStyle,layer);
   track(document.body);lastCaret=readCaret();
   const observer=new MutationObserver(records=>{
@@ -2315,20 +1557,9 @@ function untrack(root){
 start().catch(error=>console.error('[Norin] English left unchanged:',error));
 
 function getRemote(url) {
-  return new Promise((resolve,reject) => GM_xmlhttpRequest({url,method:'GET',timeout:20000,
-    onload:r => r.status === 200 ? resolve(r.responseText) : reject(new Error(`HTTP ${r.status}: ${url}`)),
+  return new Promise((resolve,reject) => GM_xmlhttpRequest({url,method:'GET',responseType:'arraybuffer',timeout:20000,
+    onload:r => r.status === 200 ? resolve(r.response) : reject(new Error(`HTTP ${r.status}: ${url}`)),
     onerror:() => reject(new Error(`Could not load ${url}`)), ontimeout:() => reject(new Error(`Timed out: ${url}`))}));
-}
-function sanitizeSVG(source, accent) {
-  const svg = parseSVG(source);
-  const allowed = new Set(['svg','g','path','circle','ellipse','rect','line','polyline','polygon']);
-  for (const el of [svg,...svg.querySelectorAll('*')]) {
-    if (!allowed.has(el.localName)) { el.remove(); continue; }
-    for (const attr of [...el.attributes]) if (/^on/i.test(attr.name) || /href|style/i.test(attr.name) || /url\(/i.test(attr.value)) el.removeAttribute(attr.name);
-  }
-  svg.classList.add(accent ? 'accent' : 'glyph');
-  applyOutlineToSVG(svg);
-  return new XMLSerializer().serializeToString(svg);
 }
 
 })();
