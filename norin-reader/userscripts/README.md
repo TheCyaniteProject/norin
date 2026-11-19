@@ -47,6 +47,8 @@ so selection followed by a resize or scroll does not shift the restored text.
 Leading numbers and symbols (for example, `1 - ` before a title) retain their
 native positions, and the first translated word starts at its English position.
 Word flow uses the original whitespace widths without a forced minimum gap.
+Translated runs reserve space for adjacent native elements, including shadow-root
+labels, and shift left into available space when needed to avoid covering them.
 Inputs, textareas, and contenteditable editors have mapped carets. The overlay
 copies the source caret color (including transparent), honors supported
 `caret-shape` and `caret-animation: manual` settings, and respects reduced motion.

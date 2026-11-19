@@ -45,6 +45,7 @@ const FONT_DOWNLOAD_TIMEOUT_MS=20000;
 // Plain entries exclude direct text only; {match, subtree:true} excludes children.
 const CLASS_EXCLUSIONS = [
   /Username/,
+  {match: 'file-contents', subtree: true},
   {match: 'NORIN_EXCLUSION', subtree: true},
   {match: 'applicationSublabel_nByiE3', subtree: true},
   {match: /codeBlock|code-block/, subtree: true}
@@ -1163,6 +1164,23 @@ function deactivate(group){
   for(const mount of [...group.mounts])dropMount(mount);
   if(group.ranges.length){group.ranges=[];highlightsDirty=true;}
 }
+// Native siblings (including shadow-root widgets) still occupy space even
+// when they have no text nodes that this renderer can index.
+function nativeBoundaryAfter(placement,owners){
+  let right=Infinity;
+  for(let el=placement.el;el;el=el.parentElement){
+    for(let sibling=el.nextElementSibling;sibling;sibling=sibling.nextElementSibling){
+      if(sibling.matches('[data-norin-mount]')||[...owners].some(owner=>owner===sibling||sibling.contains(owner)))continue;
+      const rect=sibling.getBoundingClientRect();
+      if(rect.width&&rect.height){
+        if(rect.top>=placement.rect.bottom)break;
+        if(rect.bottom>placement.rect.top&&rect.left>=placement.rect.left)right=Math.min(right,rect.left);
+      }
+    }
+    if(el===placement.scope)break;
+  }
+  return right;
+}
 function processText(group){
   if(!group.element.isConnected||!group.nodes.size&&!group.emojis.size){
     for(const record of [...group.nodes])dropNode(record);for(const emoji of [...group.emojis])dropEmoji(emoji);deactivate(group);
@@ -1233,6 +1251,23 @@ function processText(group){
       }
       p.x=cursor;cursor+=p.naturalWidth;
       if(p.kind==='emoji')p.emoji.desired=p.x-p.rect.left;previous=p;
+    }
+    // Fit each translated run before native content rather than painting over it.
+    let run=[],runRight=Infinity,leftLimit=clipFor(group.element).left;
+    for(let i=0;i<line.length;i++){
+      const p=line[i];
+      if(p.nativePrefix){leftLimit=Math.max(leftLimit,p.rect.right);continue;}
+      run.push(p);
+      if(p.kind==='emoji')continue;
+      runRight=Math.min(runRight,nativeBoundaryAfter(p,owners));
+      const boundary=runRight,next=line[i+1];
+      if(Number.isFinite(boundary)&&(!next||next.rect.left>=boundary)){
+        const gap=next?Math.max(0,next.rect.left-boundary):0;
+        const end=Math.max(...run.map(item=>item.x+item.naturalWidth));
+        const shift=Math.min(Math.max(0,end-boundary+Math.min(4,p.size*.2)),Math.max(0,run[0].x-leftLimit));
+        for(const item of run){item.x-=shift;if(item.kind==='emoji')item.emoji.desired=item.x-item.rect.left;}
+        leftLimit=Math.max(leftLimit,boundary+gap);run=[];runRight=Infinity;
+      }
     }
     const glyphs=line.filter(p=>p.kind!=='emoji');
     const inkTop=Math.min(...glyphs.map(p=>p.t.inkTop*p.size)),inkBottom=Math.max(...glyphs.map(p=>p.t.inkBottom*p.size));

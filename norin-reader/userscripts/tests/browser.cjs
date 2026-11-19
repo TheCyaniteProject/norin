@@ -41,11 +41,13 @@ function fixture(){
   <input id="compactSearch" type="search" placeholder="Search" style="position:fixed;top:10px;left:1000px;width:220px;height:40px;box-sizing:border-box;border:1px solid #777;padding:0 12px 0 36px;font:14px Arial">
   <input id="tallSearch" placeholder="Search" style="position:fixed;top:60px;left:1000px;width:220px;height:44px;box-sizing:border-box;border:1px solid #777;padding:0 12px 0 36px;font:14px/40px Arial">
   <div id="stackScene" style="position:fixed;left:900px;top:150px;width:400px;height:80px"><p id="stackBackground" style="margin:0">background text</p><div id="stackPopup" role="dialog" style="display:none;position:absolute;inset:0;z-index:5;background:#333"><p id="stackPopupText">popup text</p></div></div>
+  <div class="react-code-file-contents"><div class="react-code-line-contents"><span id="excludedCodePreview">file content</span></div></div>
+  <div style="position:fixed;left:1000px;top:270px;font:12px Arial"><a id="commitHash" href="/commit/ece01e9" style="display:inline-block;width:25px">ece01e9</a> - <native-label id="commitTime"></native-label></div><p id="hexWords">hello ece01e9 abc1234 world</p>
   <h2 id="prefixHeading" style="font:40px Arial;margin-left:120px">1 - A bad title</h2>
   <p id="small" style="font-size:12px">small words</p><p id="large" style="font-size:24px">large words</p><div id="smallEditor" contenteditable="true" style="font-size:10px">small editor</div>
   <textarea id="input" style="font-size:12px">hello world</textarea><div id="editor" contenteditable="true">hello world</div>
   <div id="scrollPanel" style="position:fixed;left:800px;top:400px;width:400px;height:180px;overflow:auto">${Array.from({length:200},(_,i)=>`<p id="scrollRow${i}" style="height:60px;margin:0">scroll message ${i}</p>`).join('')}</div>
-  <script>window.errors=[];addEventListener('error',e=>errors.push(e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));
+  <script>document.querySelector('#commitTime').attachShadow({mode:'open'}).textContent='2 minutes ago';window.errors=[];addEventListener('error',e=>errors.push(e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));
   GM_xmlhttpRequest=o=>{window.request={url:o.url,type:o.responseType};const bytes=Uint8Array.from(atob('${font}'),c=>c.charCodeAt(0));setTimeout(()=>o.onload({status:200,response:bytes.buffer}),0)};</script><script>${script}</script>`;
 }
 async function main(){
@@ -201,6 +203,7 @@ async function main(){
       }finally{rules.splice(-3);}
     })()`,sessionId);
     assert.deepEqual(configurableClasses,{exact:true,sensitive:true,regex:true,repeat:true});
+    assert.equal(await client.evaluate("norinTest.textNodes.has(document.querySelector('#excludedCodePreview').firstChild)",sessionId),false);
     const fields=await client.evaluate(`(async()=>{
       const excluded=['accountField','loginField','secretField','newSecretField'].every(id=>!norinTest.controls.has(document.getElementById(id)));
       const input=document.querySelector('#dynamicAccount'),initial=norinTest.controls.has(input);
@@ -234,6 +237,12 @@ async function main(){
       return {covered,popupTranslated,stable:Math.abs(before.left-after.left)<.5&&Math.abs(before.top-after.top)<.5};
     })()`,sessionId);
     assert.deepEqual(popupStacking,{covered:true,popupTranslated:true,stable:true});
+    const nativeNeighbor=await client.evaluate(`(()=>{
+      const hash=document.querySelector('#commitHash'),word=norinTest.textNodes.get(hash.firstChild).words[0];
+      const glyph=word.box.getBoundingClientRect(),native=document.querySelector('#commitTime').getBoundingClientRect();
+      return {translated:word.box.isConnected,noOverlap:glyph.right<=native.left,timestamp:document.querySelector('#commitTime').shadowRoot.textContent};
+    })()`,sessionId);
+    assert.deepEqual(nativeNeighbor,{translated:true,noOverlap:true,timestamp:'2 minutes ago'});
     const scrolling=await client.evaluate(`(async()=>{
       const waitFor=async fn=>{for(let i=0;i<150;i++){if(fn())return;await new Promise(r=>setTimeout(r,20));}throw Error('scroll rendering timed out')};
       const word=i=>norinTest.textNodes.get(document.querySelector('#scrollRow'+i).firstChild)?.words[0];
