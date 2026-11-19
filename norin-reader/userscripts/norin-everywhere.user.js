@@ -45,6 +45,7 @@ const FONT_DOWNLOAD_TIMEOUT_MS=20000;
 // Plain entries exclude direct text only; {match, subtree:true} excludes children.
 const CLASS_EXCLUSIONS = [
   /Username/,
+  {match: 'NORIN_EXCLUSION', subtree: true},
   {match: 'applicationSublabel_nByiE3', subtree: true},
   {match: /codeBlock|code-block/, subtree: true}
 ];
