@@ -63,12 +63,13 @@ async function main(){
       const style=t.renderCSS;
       const measured=document.createElement('div');measured.style.cssText='font:20px Arial';const sample=render('bdf');measured.append(sample);document.querySelector('#norin-userscript-layer').shadowRoot.append(measured);
       const glyph=sample.querySelector('.norin-character');const font=getComputedStyle(glyph).fontFamily;measured.remove();
-      return {all,block,accented,untouched,font,normalization:t.normalizeText('“hello”—world… 123'),yTranslations:['boy','boys','toys','days','keys','happy','yes','yard','beyond'].map(word=>t.normalizeText(word)),original:document.querySelector('#text').textContent,
+      return {all,block,accented,untouched,font,normalization:t.normalizeText('“hello”—world… 123'),yTranslations:['boy','boys','toys','days','keys','happy','yes','yard','beyond'].map(word=>t.normalizeText(word)),mouthTranslations:['write','writing','have','said','says','does','was','were','giant','gym','gentle','magic','engine','danger','orange','large','change','get','give','girl','gear','hope','boat','comb'].map(word=>t.normalizeText(word)),original:document.querySelector('#text').textContent,
         request,errors,noSVG:[...t.templates.values()].filter(t=>t.ready).every(t=>!t.node.querySelector('svg,img')),fontRange:[...document.fonts].find(f=>f.family==='NorinEverywhere')?.unicodeRange,
         noPlacement:!style.includes('punct-')&&!style.includes('sinogram'),urlTracked:!!t.textNodes.get(document.querySelector('#url').firstChild)?.words.length,codeTracked:t.textNodes.has(document.querySelector('#code').firstChild)};
     })()`,sessionId);
     assert.equal(result.all,true);assert.deepEqual(result.block,[0xe02c,0xe030,0xe034]);assert.deepEqual(result.accented,[0xe02c,0xe003]);
     assert.deepEqual(result.yTranslations,['boi','bois','tois','dais','keis','hapi','yes','yard','beyond']);
+    assert.deepEqual(result.mouthTranslations,['rit','riting','hav','sed','sez','duz','wuz','wur','jiant','jym','jentle','majik','enjine','danjer','oranje','larje','chanje','get','give','girl','gear','hope','boat','komb']);
     assert.equal(result.untouched,true);assert.equal(result.font,'NorinEverywhere');assert.equal(result.normalization,'“helo”—world… 123');
     assert.equal(result.original,'Hello world! 123 — < > 😀');assert.equal(result.request.type,'arraybuffer');assert.match(result.fontRange,/E000-E061/i);
     assert.deepEqual(result.errors,[]);assert.equal(result.noSVG,true);assert.equal(result.noPlacement,true);assert.equal(result.urlTracked,false);assert.equal(result.codeTracked,false);

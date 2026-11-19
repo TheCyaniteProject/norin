@@ -10,6 +10,12 @@ text with [Norin.ttf](https://github.com/TheCyaniteProject/norin/blob/main/norin
 The font is downloaded once per page through Tampermonkey and loaded before any
 English text is hidden. A failed download leaves the page in English.
 
+Conversion preserves letters used for mouth shape or spelling context, even when
+unvoiced: `hope` and `boat` retain their vowels, and `comb` retains its `b`
+(`komb` after the existing C rule). Word exceptions include `write` → `rit`,
+`have` → `hav`, `said` → `sed`, and `does` → `duz`. Soft G conversions target
+known words and families, preserving hard G in `get`, `give`, `girl`, and `gear`.
+
 The character map is:
 
 | Characters | First code | Codes per character |

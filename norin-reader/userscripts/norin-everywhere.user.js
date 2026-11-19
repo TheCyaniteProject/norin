@@ -22,6 +22,72 @@ const bundledMappings = {
     "”": "\"",
     "—": "-",
     "00devcomment_case": "Phonetic rules below are lowercase-only so uppercase can pass through mostly unchanged.",
+    "write_word": {
+      "regex": "\\b[Ww]rite\\b",
+      "replace": "rit"
+    },
+    "writes_word": {
+      "regex": "\\b[Ww]rites\\b",
+      "replace": "rits"
+    },
+    "writer_word": {
+      "regex": "\\b[Ww]riter\\b",
+      "replace": "riter"
+    },
+    "writers_word": {
+      "regex": "\\b[Ww]riters\\b",
+      "replace": "riters"
+    },
+    "writing_word": {
+      "regex": "\\b[Ww]riting\\b",
+      "replace": "riting"
+    },
+    "written_word": {
+      "regex": "\\b[Ww]ritten\\b",
+      "replace": "riten"
+    },
+    "have_word": {
+      "regex": "\\b[Hh]ave\\b",
+      "replace": "hav"
+    },
+    "has_word": {
+      "regex": "\\b[Hh]as\\b",
+      "replace": "haz"
+    },
+    "said_word": {
+      "regex": "\\b[Ss]aid\\b",
+      "replace": "sed"
+    },
+    "says_word": {
+      "regex": "\\b[Ss]ays\\b",
+      "replace": "sez"
+    },
+    "does_word": {
+      "regex": "\\b[Dd]oes\\b",
+      "replace": "duz"
+    },
+    "was_word": {
+      "regex": "\\b[Ww]as\\b",
+      "replace": "wuz"
+    },
+    "were_word": {
+      "regex": "\\b[Ww]ere\\b",
+      "replace": "wur"
+    },
+    "soft_g_initial": {
+      "regex": "\\b[Gg](?=(?:iants?|yms?|ymnast(?:s|ic|ics)?|ems?|erms?|entle|ently|eneral(?:s|ly)?|eneration(?:s)?|enius(?:es)?|iraffes?)\\b)",
+      "replace": "j"
+    },
+    "soft_g_words": {
+      "regex": {
+        "\\b([Mm]a)g(?=ic(?:al|ally)?\\b)": "$1j",
+        "\\b([Ee]n)g(?=ine(?:s|er|ers|ering)?\\b)": "$1j",
+        "\\b([Dd]an)g(?=er(?:s|ous|ously)?\\b)": "$1j",
+        "\\b([Oo]ran)g(?=es?\\b)": "$1j",
+        "\\b([Aa])g(?=e(?:s|d|ing)?\\b)": "$1j",
+        "\\b([Pp]a|[Cc]a|[Ll]ar|[Hh]u|[Cc]han|[Ss]ta)g(?=e(?:s|d)?\\b)": "$1j"
+      }
+    },
     "im_contraction": {
       "regex": "\\b[Ii]'m\\b",
       "replace": "i am"
@@ -280,10 +346,6 @@ const bundledMappings = {
       "regex": "\\brh",
       "replace": "r"
     },
-    "mb_final": {
-      "regex": "\\bmb(?=[^a-z]|$)",
-      "replace": "m"
-    },
     "qu": {
       "regex": "[Qq]u",
       "replace": "kw"
@@ -385,7 +447,7 @@ const bundledMappings = {
       "regex": "(?<=[a-z]{2})y(?=s?(?:[^a-z]|$))",
       "replace": "i"
     }
-  },
+  }
 };
 const FONT_URL='https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/Norin.ttf';
 const fontCodes=Object.create(null);
