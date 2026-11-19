@@ -38,6 +38,9 @@ function fixture(){
   <input id="accountField" name="userNAME" value="someone"><input id="loginField" autocomplete="section-login username" value="someone"><input id="secretField" type="password" value="secret"><input id="newSecretField" autocomplete="new-password" value="secret"><input id="dynamicAccount" value="someone">
   <div class="usernameAndPronounsRow_C2XpHA"><span id="nestedUsername" class="userTagUsername_random">accountname</span><span class="pronounsTooltip_C2XpHA"><span id="pronouns" class="pronouns_C2XpHA userTag_C2XpHA">Follower of Perfect-Cell</span></span></div>
   <span class="applicationSublabel_nByiE3"><span id="applicationSublabel">application details</span></span>
+  <input id="compactSearch" type="search" placeholder="Search" style="position:fixed;top:10px;left:1000px;width:220px;height:40px;box-sizing:border-box;border:1px solid #777;padding:0 12px 0 36px;font:14px Arial">
+  <input id="tallSearch" placeholder="Search" style="position:fixed;top:60px;left:1000px;width:220px;height:44px;box-sizing:border-box;border:1px solid #777;padding:0 12px 0 36px;font:14px/40px Arial">
+  <div id="stackScene" style="position:fixed;left:900px;top:150px;width:400px;height:80px"><p id="stackBackground" style="margin:0">background text</p><div id="stackPopup" role="dialog" style="display:none;position:absolute;inset:0;z-index:5;background:#333"><p id="stackPopupText">popup text</p></div></div>
   <h2 id="prefixHeading" style="font:40px Arial;margin-left:120px">1 - A bad title</h2>
   <p id="small" style="font-size:12px">small words</p><p id="large" style="font-size:24px">large words</p><div id="smallEditor" contenteditable="true" style="font-size:10px">small editor</div>
   <textarea id="input" style="font-size:12px">hello world</textarea><div id="editor" contenteditable="true">hello world</div>
@@ -207,6 +210,30 @@ async function main(){
       return {excluded,initial,removed,restored:norinTest.controls.has(input)};
     })()`,sessionId);
     assert.deepEqual(fields,{excluded:true,initial:true,removed:true,restored:true});
+    const searchAlignment=await client.evaluate(`(()=>{
+      return ['compactSearch','tallSearch'].map(id=>{
+        const input=document.getElementById(id),view=norinTest.controls.get(input).view,item=view.items.find(item=>item.t);
+        const inputRect=input.getBoundingClientRect(),glyphRect=item.glyph.getBoundingClientRect(),cs=getComputedStyle(input),size=parseFloat(getComputedStyle(item.glyph).fontSize);
+        const actualCenter=glyphRect.top+(item.t.inkTop+item.t.inkBottom)*size/2;
+        const expectedCenter=inputRect.top+input.clientTop+input.clientHeight/2+(parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom))/2;
+        return {id,centered:Math.abs(actualCenter-expectedCenter)<1,left:Math.abs(glyphRect.left-inputRect.left-input.clientLeft-parseFloat(cs.paddingLeft))<1};
+      });
+    })()`,sessionId);
+    assert.deepEqual(searchAlignment,[{id:'compactSearch',centered:true,left:true},{id:'tallSearch',centered:true,left:true}]);
+    const popupStacking=await client.evaluate(`(async()=>{
+      const background=document.querySelector('#stackBackground').firstChild;
+      const word=norinTest.textNodes.get(background).words[0],before=word.box.getBoundingClientRect();
+      const popup=document.querySelector('#stackPopup');popup.style.display='block';await new Promise(r=>setTimeout(r,200));
+      // Temporarily allow hit testing to inspect browser paint order of the overlay.
+      const old=word.box.style.pointerEvents;word.box.style.pointerEvents='auto';
+      const hit=document.elementFromPoint(before.left+2,before.top+before.height/2);
+      const covered=hit===popup||popup.contains(hit);word.box.style.pointerEvents=old;
+      const popupTranslated=!!norinTest.textNodes.get(document.querySelector('#stackPopupText').firstChild)?.words[0]?.box?.isConnected;
+      popup.style.display='none';await new Promise(r=>setTimeout(r,150));
+      const after=word.box.getBoundingClientRect();
+      return {covered,popupTranslated,stable:Math.abs(before.left-after.left)<.5&&Math.abs(before.top-after.top)<.5};
+    })()`,sessionId);
+    assert.deepEqual(popupStacking,{covered:true,popupTranslated:true,stable:true});
     const scrolling=await client.evaluate(`(async()=>{
       const waitFor=async fn=>{for(let i=0;i<150;i++){if(fn())return;await new Promise(r=>setTimeout(r,20));}throw Error('scroll rendering timed out')};
       const word=i=>norinTest.textNodes.get(document.querySelector('#scrollRow'+i).firstChild)?.words[0];

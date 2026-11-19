@@ -596,6 +596,7 @@ const renderCSS=`
 :host{all:initial;pointer-events:none}
 .norin-edit-word,.word{position:absolute;width:max-content;white-space:nowrap;transform-origin:0 0;line-height:1}
 .norin-character{font-family:NorinEverywhere}
+.norin-input-mirror>*{flex-shrink:0}
 .norin-caret{position:absolute;display:block;width:1px;pointer-events:none;user-select:none;animation:norin-caret-blink 1s step-end infinite;z-index:2}
 @keyframes norin-caret-blink{0%,45%{opacity:1}50%,100%{opacity:0}}
 @media(prefers-reduced-motion:reduce){.norin-caret{animation:none}}
@@ -835,7 +836,9 @@ function mountFor(owner,group){
   if(mount&&!mount.host.isConnected)owner.append(mount.host);
   if(!mount){
     const host=document.createElement('div');host.setAttribute('data-norin-mount','');host.setAttribute('aria-hidden','true');
-    host.style.cssText='all:initial;position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none;visibility:inherit;z-index:2147483646';
+    // Contain overlay descendants at the source's normal stacking level so
+    // page dialogs, menus, and backdrops can cover the underlying text.
+    host.style.cssText='all:initial;position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none;visibility:inherit;z-index:0';
     const root=host.attachShadow({mode:'open'});root.adoptedStyleSheets=[sharedSheet];
     let anchor=anchors.get(owner);
     if(!anchor){
@@ -1327,7 +1330,9 @@ function processControl(group){
   const mount=mountFor(input.parentElement,group),origin=mount.host.getBoundingClientRect();
   if(view.box.parentNode!==mount.root)mount.root.append(view.box);
   setStyles(view.box,{position:'absolute',left:`${b.left+input.clientLeft-origin.left}px`,top:`${b.top+input.clientTop-origin.top}px`,width:`${input.clientWidth}px`,height:`${input.clientHeight}px`,overflow:'hidden'});
-  setStyles(view.mirror,{position:'relative',fontSize:`${norinFontSize(cs)}px`,fontFamily:cs.fontFamily,fontWeight:cs.fontWeight,fontStyle:cs.fontStyle,lineHeight:cs.lineHeight,color,boxSizing:'border-box',width:`${input.clientWidth}px`,padding:cs.padding,whiteSpace:input.tagName==='TEXTAREA'?'pre-wrap':'pre',overflowWrap:cs.overflowWrap,transform:`translate(${-view.scrollX}px,${-view.scrollY}px)`});
+  const singleLine=input.tagName==='INPUT';
+  view.mirror.classList.toggle('norin-input-mirror',singleLine);
+  setStyles(view.mirror,{display:singleLine?'flex':'block',alignItems:singleLine?'center':'normal',height:singleLine?`${input.clientHeight}px`:'auto',justifyContent:singleLine?(cs.textAlign==='center'?'center':/^(right|end)$/.test(cs.textAlign)?'flex-end':'flex-start'):'normal',direction:cs.direction,position:'relative',fontSize:`${norinFontSize(cs)}px`,fontFamily:cs.fontFamily,fontWeight:cs.fontWeight,fontStyle:cs.fontStyle,lineHeight:cs.lineHeight,color,boxSizing:'border-box',width:`${input.clientWidth}px`,padding:cs.padding,whiteSpace:input.tagName==='TEXTAREA'?'pre-wrap':'pre',overflowWrap:cs.overflowWrap,transform:`translate(${-view.scrollX}px,${-view.scrollY}px)`});
   view.customCaret=!!caret&&!!view.caretAnchor;
   if(view.customCaret){
     const marker=view.caretAnchor.getBoundingClientRect(),mirror=view.mirror.getBoundingClientRect(),height=norinFontSize(cs);

@@ -50,7 +50,9 @@ Word flow uses the original whitespace widths without a forced minimum gap.
 Inputs, textareas, and contenteditable editors have mapped carets. The overlay
 copies the source caret color (including transparent), honors supported
 `caret-shape` and `caret-animation: manual` settings, and respects reduced motion.
-Caret height follows the rendered Norin size. Native inline caret styles are
+Caret height follows the rendered Norin size. Single-line input overlays center
+the text within the padded control height, including compact search fields;
+textareas retain their multiline layout. Native inline caret styles are
 left intact. OS blink timing and native caret thickness are not exposed to page
 JavaScript; the fallback is a 1px blinking bar, with approximate block/underscore
 widths when those shapes are supported.
@@ -77,7 +79,8 @@ around the viewport and nested scroll panels prepares text before it appears
 and retains it after it leaves view, so short scrolls reuse mounted overlays.
 Settled-scroll recovery uses the same buffer. Font templates are prepared in
 batches of up to 32 while retaining the frame budget; distant text is still culled. Overlays follow
-the original page's line positions and clipping. Specialized editors and unusual
+the original page's line positions, clipping, and stacking order. Background
+text stays below popups and menus; text inside those popups can still translate. Specialized editors and unusual
 transforms may still need site-specific adjustments.
 
 Run the syntax check and local Chrome regression suite:
