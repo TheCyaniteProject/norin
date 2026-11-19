@@ -28,11 +28,16 @@ class CDP {
 }
 function fixture(){
   let script=fs.readFileSync(path.resolve(__dirname,'../norin-everywhere.user.js'),'utf8');
-  script=script.replace("GM_registerMenuCommand('Toggle Norin / English',toggle);",'window.norinTest={renderInto,fontCodes,normalizeText,wordPlan,templates,textNodes,controls,toggle,renderCSS,recoverViewport,controlParts};');
+  script=script.replace("GM_registerMenuCommand('Toggle Norin / English',toggle);",'window.norinTest={renderInto,fontCodes,normalizeText,wordPlan,templates,textNodes,controls,toggle,renderCSS,recoverViewport,controlParts,CLASS_EXCLUSIONS,excludedClass};');
   const font=fs.readFileSync(path.join(__dirname,'fixtures/Norin.ttf')).toString('base64');
   return `<!doctype html><meta charset="utf-8"><style>body{font:20px Arial}p{line-height:40px}</style>
   <p id="text" style="margin-left:240px;margin-top:70px">Hello world! 123 — &lt; &gt; 😀</p><p><a id="url">https://example.com</a></p><code id="code">hello world</code>
   <p id="mentions">hello @someone @User.Name username@mail.com world</p><a id="mentionLink" href="https://example.com"><span>@</span><span>Someone</span></a>
+  <div><span id="discordDisplay">Shy</span><span id="discordUsername" class="userTagUsername_C2XpHA body-sm/normal_RAOoio">shyguy1412</span></div>
+  <span id="genericUsername" class="Username_random">someone</span><span id="userTagOnly" class="UserTag_random">Shy</span>
+  <input id="accountField" name="userNAME" value="someone"><input id="loginField" autocomplete="section-login username" value="someone"><input id="secretField" type="password" value="secret"><input id="newSecretField" autocomplete="new-password" value="secret"><input id="dynamicAccount" value="someone">
+  <div class="usernameAndPronounsRow_C2XpHA"><span id="nestedUsername" class="userTagUsername_random">accountname</span><span class="pronounsTooltip_C2XpHA"><span id="pronouns" class="pronouns_C2XpHA userTag_C2XpHA">Follower of Perfect-Cell</span></span></div>
+  <span class="applicationSublabel_nByiE3"><span id="applicationSublabel">application details</span></span>
   <h2 id="prefixHeading" style="font:40px Arial;margin-left:120px">1 - A bad title</h2>
   <p id="small" style="font-size:12px">small words</p><p id="large" style="font-size:24px">large words</p><div id="smallEditor" contenteditable="true" style="font-size:10px">small editor</div>
   <textarea id="input" style="font-size:12px">hello world</textarea><div id="editor" contenteditable="true">hello world</div>
@@ -164,6 +169,44 @@ async function main(){
       return {page,link,parts:parts.filter(p=>p.text.includes('@')).every(p=>p.plain),control:!!item?.plain&&item.node.textContent==='username@mail.com',source:source.data};
     })()`,sessionId);
     assert.deepEqual(mentions,{page:true,link:true,parts:true,control:true,source:'hello @someone @User.Name username@mail.com world'});
+    const discordNames=await client.evaluate(`(()=>{
+      const username=document.querySelector('#discordUsername'),display=document.querySelector('#discordDisplay');
+      return {username:!norinTest.textNodes.get(username.firstChild)?.words.length,display:!!norinTest.textNodes.get(display.firstChild)?.words[0]?.box?.isConnected,
+        generic:!norinTest.textNodes.get(document.querySelector('#genericUsername').firstChild)?.words.length,tag:!!norinTest.textNodes.get(document.querySelector('#userTagOnly').firstChild)?.words[0]?.box?.isConnected};
+    })()`,sessionId);
+    assert.deepEqual(discordNames,{username:true,display:true,generic:true,tag:true});
+    const nestedNames=await client.evaluate(`(async()=>{
+      const pronouns=document.querySelector('#pronouns'),account=document.querySelector('#nestedUsername');
+      const translated=()=>!!norinTest.textNodes.get(pronouns.firstChild)?.words.some(w=>w.box?.isConnected);
+      const initially=translated(),accountExcluded=!norinTest.textNodes.get(account.firstChild)?.words.length;
+      pronouns.classList.add('Username_direct');await new Promise(r=>setTimeout(r,150));
+      const directExcluded=!translated();
+      pronouns.classList.remove('Username_direct');await new Promise(r=>setTimeout(r,150));
+      return {initially,accountExcluded,directExcluded,restored:translated()};
+    })()`,sessionId);
+    assert.deepEqual(nestedNames,{initially:true,accountExcluded:true,directExcluded:true,restored:true});
+    assert.equal(await client.evaluate("norinTest.textNodes.has(document.querySelector('#applicationSublabel').firstChild)",sessionId),false);
+    const configurableClasses=await client.evaluate(`(()=>{
+      const node=document.createElement('span');node.className='ExactClass';
+      const rules=norinTest.CLASS_EXCLUSIONS;
+      rules.push('ExactClass',/^regexClass_[a-z]+$/i,/globalClass/g);
+      try{
+        const exact=norinTest.excludedClass(node);node.className='exactclass';const sensitive=!norinTest.excludedClass(node);
+        node.className='REGEXCLASS_abc';const regex=norinTest.excludedClass(node);
+        node.className='globalClass';const repeat=norinTest.excludedClass(node)&&norinTest.excludedClass(node);
+        return {exact,sensitive,regex,repeat};
+      }finally{rules.splice(-3);}
+    })()`,sessionId);
+    assert.deepEqual(configurableClasses,{exact:true,sensitive:true,regex:true,repeat:true});
+    const fields=await client.evaluate(`(async()=>{
+      const excluded=['accountField','loginField','secretField','newSecretField'].every(id=>!norinTest.controls.has(document.getElementById(id)));
+      const input=document.querySelector('#dynamicAccount'),initial=norinTest.controls.has(input);
+      input.autocomplete='username';await new Promise(r=>setTimeout(r,150));
+      const removed=!norinTest.controls.has(input)&&!input.hasAttribute('data-norin-input');
+      input.autocomplete='off';await new Promise(r=>setTimeout(r,150));
+      return {excluded,initial,removed,restored:norinTest.controls.has(input)};
+    })()`,sessionId);
+    assert.deepEqual(fields,{excluded:true,initial:true,removed:true,restored:true});
     const scrolling=await client.evaluate(`(async()=>{
       const waitFor=async fn=>{for(let i=0;i<150;i++){if(fn())return;await new Promise(r=>setTimeout(r,20));}throw Error('scroll rendering timed out')};
       const word=i=>norinTest.textNodes.get(document.querySelector('#scrollRow'+i).firstChild)?.words[0];

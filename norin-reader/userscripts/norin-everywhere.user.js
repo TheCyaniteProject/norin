@@ -13,6 +13,41 @@
 
 (() => {
 'use strict';
+// Prepare and retain text well beyond both viewport and nested scroll edges. High values may cause lag.
+const RENDER_AHEAD_PX=3400;
+
+// Minimum rendered font size in CSS pixels.
+const MIN_NORIN_FONT_SIZE=18;
+
+// Font source (update @connect too if changing the host).
+const FONT_URL='https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/Norin.ttf';
+
+// Maximum work per foreground frame before yielding.
+const FRAME_BUDGET_MS=7;
+
+// Maximum entries retained in each rendering cache.
+const LIMITS={spellings:4000,shapes:1000,templates:2000,views:2500};
+
+// Space around the mapped editing caret, in em.
+const CARET_GAP=.22;
+
+// Number of new word templates prepared per batch.
+const TEMPLATE_BATCH_SIZE=32;
+
+// Polling interval for silent form-control changes, in milliseconds.
+const CONTROL_POLL_MS=500;
+
+// Font download timeout, in milliseconds.
+const FONT_DOWNLOAD_TIMEOUT_MS=20000;
+
+// Settings: strings match an exact, case-sensitive class name. Regexes test
+// each class name (use /pattern/i for case-insensitive matching).
+// Plain entries exclude direct text only; {match, subtree:true} excludes children.
+const CLASS_EXCLUSIONS = [
+  /Username/,
+  {match: 'applicationSublabel_nByiE3', subtree: true},
+  {match: /codeBlock|code-block/, subtree: true}
+];
 let phoneticMap;
 let phoneticKeys = [];
 const bundledMappings = {
@@ -449,7 +484,6 @@ const bundledMappings = {
     }
   }
 };
-const FONT_URL='https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/Norin.ttf';
 const fontCodes=Object.create(null);
 for(const [keys,start,stride] of [
   [['a','e','i','o','u'],0xE000,4],
@@ -552,11 +586,6 @@ function renderInto(target, rawText, opts = {}) {
 
 let enabled=true;
 let floatingControl=null;
-const LIMITS={spellings:4000,shapes:1000,templates:2000,views:2500};
-const FRAME_BUDGET_MS=7;
-// Prepare and retain text well beyond both viewport and nested scroll edges.
-const RENDER_AHEAD_PX=3400;
-const MIN_NORIN_FONT_SIZE=18;
 function norinFontSize(cs){return Math.max(MIN_NORIN_FONT_SIZE,parseFloat(cs.fontSize)||16);}
 const layer=document.createElement('div');
 layer.id='norin-userscript-layer';
@@ -578,7 +607,26 @@ pageStyle.textContent=`[data-norin-custom-caret],[data-norin-custom-caret] *{car
 ::highlight(norin-original){color:transparent;text-shadow:none}
 [data-norin-input]{-webkit-text-fill-color:transparent!important;text-shadow:none!important}
 [data-norin-input]::placeholder{color:transparent!important;-webkit-text-fill-color:transparent!important}`;
-const skip='pre,code,kbd,samp,[data-slate-type="code-block"],[data-slate-type="code-line"],[class*="codeBlock"],[class*="code-block"],area,[data-norin-mount],script,style,noscript,svg,canvas,select,option,title,head,[data-norin-ignore],#norin-userscript-layer';
+const skip='pre,code,kbd,samp,[data-slate-type="code-block"],[data-slate-type="code-line"],area,[data-norin-mount],script,style,noscript,svg,canvas,select,option,title,head,[data-norin-ignore],#norin-userscript-layer,input[name*="username" i],input[id*="username" i],textarea[name*="username" i],textarea[id*="username" i],[autocomplete~="username" i],[autocomplete~="current-password" i],[autocomplete~="new-password" i],input[type="password"]';
+function excludedClass(element,subtreeOnly=false){
+  if(!element)return false;
+  return CLASS_EXCLUSIONS.some(rule=>{
+    const descriptor=typeof rule==='object'&&!(rule instanceof RegExp);
+    if(subtreeOnly&&!(descriptor&&rule.subtree))return false;
+    const pattern=descriptor?rule.match:rule;
+    return [...element.classList].some(name=>{
+      if(typeof pattern==='string')return name===pattern;
+      if(!(pattern instanceof RegExp))return false;
+      const previous=pattern.lastIndex;pattern.lastIndex=0;
+      const matches=pattern.test(name);pattern.lastIndex=previous;return matches;
+    });
+  });
+}
+function excludedSubtree(element){
+  if(element?.closest(skip))return true;
+  for(let current=element;current;current=current.parentElement)if(excludedClass(current,true))return true;
+  return false;
+}
 const textNodes=new Map(), scopes=new Map(), controls=new Map(), mounts=new Map(), anchors=new Map();
 const activeRecords=new Set(), dirtyRecords=new Set(), removedRoots=new Set();
 const spellings=new Map(), shapes=new Map(), templates=new Map(), detachedViews=new Map(), recycledViews=new Map();
@@ -636,7 +684,7 @@ function addEmoji(element,recover=false){
   }else{
     if(!element.matches('span,[role="img"]')||element.childElementCount||!emojiText.test(element.textContent)||/[\p{L}\p{N}]/u.test(element.textContent))return;
   }
-  if(carrier.closest(skip))return;
+  if(excludedSubtree(carrier))return;
   const group=recordFor(scopeFor(carrier.parentElement));
   let record=emojiRecords.get(carrier);
   if(!record){
@@ -665,7 +713,7 @@ function dropEmoji(record){restoreEmoji(record);record.group.emojis.delete(recor
 function emojiPlacement(record){
   const el=record.element;
   if(!el.isConnected){dropEmoji(record);return null;}
-  if(el.closest(skip)){restoreEmoji(record);return null;}
+  if(excludedSubtree(el)){restoreEmoji(record);return null;}
   if(record.applied&&el.style.getPropertyValue('translate')!==record.expected){record.applied=false;record.dx=0;record.original=el.style.getPropertyValue('translate');record.priority=el.style.getPropertyPriority('translate');}
   if(!record.applied&&styleOf(el).translate!=='none')return null;
   const bounds=el.getBoundingClientRect(),size=parseFloat(styleOf(el).fontSize)||16,clip=renderClipFor(el.parentElement);
@@ -682,7 +730,7 @@ function emojiGapHasText(previous,current){
   }catch(_){return true;}
 }
 function addNode(node,resetRanges=false,recover=false){
-  if(!node.parentElement||node.parentElement.closest(skip+',input,textarea'))return;
+  if(!node.parentElement||excludedSubtree(node.parentElement)||node.parentElement.closest('input,textarea'))return;
   let record=textNodes.get(node);
   if(!record&&!/[a-z0-9\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]/i.test(node.data))return;
   const group=recordFor(scopeFor(node.parentElement));
@@ -700,7 +748,7 @@ function addNode(node,resetRanges=false,recover=false){
   }else if(group.near)dirty(group);
 }
 function addControl(input){
-  if(input.closest(skip)||input.tagName==='INPUT'&&!['text','search','email','url','tel'].includes(input.type)){
+  if(excludedSubtree(input)||excludedClass(input)||input.tagName==='INPUT'&&!['text','search','email','url','tel'].includes(input.type)){
     if(controls.has(input))disposeControl(controls.get(input));return;
   }
   if(!controls.has(input)){
@@ -710,12 +758,12 @@ function addControl(input){
 }
 function track(root,resetRanges=false,recover=false){
   if(root.nodeType===Node.TEXT_NODE){addNode(root,resetRanges,recover);return;}
-  if(!(root instanceof Element)||root.closest(skip))return;
+  if(!(root instanceof Element)||excludedSubtree(root))return;
   if(root.matches('input,textarea')){addControl(root);return;}
   addEmoji(root,recover);
   const walker=document.createTreeWalker(root,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT,{
     acceptNode(n){
-      if(n.nodeType===Node.ELEMENT_NODE){if(n.matches(skip))return NodeFilter.FILTER_REJECT;if(n.matches('input,textarea')){addControl(n);return NodeFilter.FILTER_REJECT;}addEmoji(n,recover);return NodeFilter.FILTER_SKIP;}
+      if(n.nodeType===Node.ELEMENT_NODE){if(n.matches(skip)||excludedClass(n,true))return NodeFilter.FILTER_REJECT;if(n.matches('input,textarea')){addControl(n);return NodeFilter.FILTER_REJECT;}addEmoji(n,recover);return NodeFilter.FILTER_SKIP;}
       return /[a-z0-9\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]/i.test(n.data)||textNodes.has(n)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;
     }
   });
@@ -861,7 +909,7 @@ function cellInk(cell){
 function finishTemplates(list){
   const probes=[];
   for(const t of new Set(list))if(t.width===null){
-    if(probes.length===32)break;
+    if(probes.length>=TEMPLATE_BATCH_SIZE)break;
     const probe=shapeFor(t.text,t.flat,t.normalized).cloneNode(true);
     probe.style.cssText='position:absolute;visibility:hidden;font-size:100px;left:0;top:0;width:max-content;line-height:1';
     setStyles(probe,{fontFamily:t.font,fontWeight:t.weight,fontStyle:t.fontStyle,color:t.color});
@@ -909,7 +957,7 @@ function protectedCode(group){
   if(!root.textContent.includes('`'))return result;
   const pieces=[];let text='';
   const walker=document.createTreeWalker(root,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT,{
-    acceptNode(n){if(n.nodeType===Node.ELEMENT_NODE)return n.matches(skip+',input,textarea')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_SKIP;return NodeFilter.FILTER_ACCEPT;}
+    acceptNode(n){if(n.nodeType===Node.ELEMENT_NODE)return (n.matches(skip+',input,textarea')||excludedClass(n,true))?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_SKIP;return NodeFilter.FILTER_ACCEPT;}
   });
   let node;while((node=walker.nextNode())){pieces.push({node,start:text.length,end:text.length+node.data.length});text+=node.data;}
   const spans=codeSpans(text);
@@ -922,7 +970,6 @@ function protectedCode(group){
 // English offsets remain authoritative. Only the active spelling needs an alignment.
 const caretAlignments=new Map(),editingViews=new Map(),nativeCaretOwners=new Set();
 let lastCaret=null,composingEditor=null;
-const CARET_GAP=.22;
 function sourceAlignment(raw){
   let result=caretAlignments.get(raw);if(result){caretAlignments.delete(raw);caretAlignments.set(raw,result);return result;}
   const normalized=wordPlan(raw).text,m=raw.length,n=normalized.length,spans=[];
@@ -989,7 +1036,7 @@ function readCaret(){
     const index=texts.indexOf(node),previous=texts.slice(0,index).reverse().find(n=>n.data.replace(/[\u200b\ufeff]/g,'')),next=texts.slice(index+1).find(n=>n.data.replace(/[\u200b\ufeff]/g,''));
     if(previous){node=previous;offset=node.length;}else if(next){node=next;offset=0;}else return null;
   }
-  if(node.parentElement?.closest(skip))return null;
+  if(excludedSubtree(node.parentElement))return null;
   return {element:editor,node,offset,control:false};
 }
 function queueCaretUpdate(){
@@ -1122,7 +1169,7 @@ function processText(group){
   for(const record of [...group.nodes]){
     const node=record.node,el=node.parentElement;
     if(!node.isConnected){dropNode(record);continue;}
-    if(!el||el.closest(skip)||literalLink(el)){releaseWords(record);continue;}
+    if(!el||excludedSubtree(el)||excludedClass(el)||literalLink(el)){releaseWords(record);continue;}
     const cs=styleOf(el);if(cs.display==='none'){releaseWords(record);continue;}
     tokenize(record,protectedRanges.get(node)||[]);const clip=renderClipFor(el);
     for(const word of record.words){
@@ -1382,7 +1429,7 @@ function recoverViewport(){
   const generation=++recoveryGeneration,roots=new Set(),width=innerWidth,height=innerHeight;
   samples:for(let y=24;y<height;y+=Math.max(72,height/8))for(const fraction of [.15,.4,.65,.85]){
     for(const hit of document.elementsFromPoint(width*fraction,y)){
-      if(hit===document.body||hit===document.documentElement||hit.closest(skip))continue;
+      if(hit===document.body||hit===document.documentElement||excludedSubtree(hit))continue;
       let root=hit.closest('article,li,[role="listitem"],[data-testid="cellInnerDiv"],[data-testid="tweetText"]')||hit;
       const box=root.getBoundingClientRect();
       if(box.height>height*2||root.childElementCount>80)root=hit;
@@ -1458,7 +1505,7 @@ function editingPoint(owner,x,y){
   const native=document.caretRangeFromPoint?.(x,y);
   if(native?.startContainer.nodeType===Node.TEXT_NODE){
     const node=native.startContainer,offset=native.startOffset,group=textNodes.get(node)?.group;
-    if(node.parentElement.closest(skip)||literalLink(node.parentElement))return null;
+    if(excludedSubtree(node.parentElement)||excludedClass(node.parentElement)||literalLink(node.parentElement))return null;
     if(group&&(protectedCode(group).get(node)||[]).some(span=>offset>=span.start&&offset<=span.end))return null;
     for(const match of node.data.matchAll(/\S+/gu))if(offset>=match.index&&offset<=match.index+match[0].length&&literalToken(match[0]))return null;
   }
@@ -1475,7 +1522,7 @@ function editingPoint(owner,x,y){
 let editingPointer=null;
 function editingPointerDown(event){
   editingPointer=null;if(!enabled||composingEditor||event.button!==0||!event.isPrimary||event.shiftKey||event.ctrlKey||event.metaKey||event.altKey)return;
-  const element=event.target instanceof Element?event.target:null;if(!element||element.closest(skip)||element.tagName==='IMG'||element.closest('[contenteditable="false"],button,a,[role="img"]')||literalLink(element))return;
+  const element=event.target instanceof Element?event.target:null;if(!element||excludedSubtree(element)||element.tagName==='IMG'||element.closest('[contenteditable="false"],button,a,[role="img"]')||literalLink(element))return;
   const owner=controls.has(element)?element:editorFor(element);if(!owner)return;
   if(!controls.has(element)&&!window.getSelection()?.isCollapsed)return;
   const point=editingPoint(owner,event.clientX,event.clientY);
@@ -1588,7 +1635,7 @@ async function start(){
       if(r.type==='attributes'&&r.attributeName==='style'&&ownStyles.get(r.target)===r.target.getAttribute('style'))continue;
       if(r.type==='characterData'){addNode(r.target,true);const editor=r.target.parentElement?.closest('[contenteditable="true"],[role="textbox"]');if(editor)invalidate(editor);}
       if(r.type==='attributes')addEmoji(r.target);
-      if(r.type==='attributes'&&r.attributeName==='type'&&r.target.matches('input'))addControl(r.target);
+      if(r.type==='attributes'&&['type','name','id','autocomplete','class'].includes(r.attributeName)&&r.target.matches('input,textarea'))addControl(r.target);
       if(r.type==='childList'){
         for(const n of r.removedNodes)removedRoots.add(n);
         for(const n of r.addedNodes)track(n,true);
@@ -1599,7 +1646,7 @@ async function start(){
       if(removedRoots.size)schedule();
     }
   });
-  observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','style','hidden','placeholder','value','href','role','type','data-slate-type','src','alt','aria-label']});
+  observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','style','hidden','placeholder','value','href','role','type','name','id','autocomplete','data-slate-type','src','alt','aria-label']});
   new MutationObserver(()=>{for(const group of activeRecords)dirty(group);}).observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme','data-color-mode']});
   for(const event of ['input','change','focusin','focusout'])document.addEventListener(event,onInput,true);
   document.addEventListener('scroll',onScroll,{capture:true,passive:true});
@@ -1617,7 +1664,7 @@ async function start(){
   setInterval(()=>{
     if(!enabled||document.hidden)return;
     for(const group of activeRecords)if(group.kind==='control'&&group.value!==group.element.value)dirty(group,true);
-  },500);
+  },CONTROL_POLL_MS);
   const fontChanged=()=>{fontEpoch++;for(const group of activeRecords)dirty(group);};
   document.fonts?.ready.then(fontChanged);document.fonts?.addEventListener('loadingdone',fontChanged);
   setTimeout(recoverViewport,150);
@@ -1637,7 +1684,7 @@ function untrack(root){
 start().catch(error=>console.error('[Norin] English left unchanged:',error));
 
 function getRemote(url) {
-  return new Promise((resolve,reject) => GM_xmlhttpRequest({url,method:'GET',responseType:'arraybuffer',timeout:20000,
+  return new Promise((resolve,reject) => GM_xmlhttpRequest({url,method:'GET',responseType:'arraybuffer',timeout:FONT_DOWNLOAD_TIMEOUT_MS,
     onload:r => r.status === 200 ? resolve(r.response) : reject(new Error(`HTTP ${r.status}: ${url}`)),
     onerror:() => reject(new Error(`Could not load ${url}`)), ontimeout:() => reject(new Error(`Timed out: ${url}`))}));
 }

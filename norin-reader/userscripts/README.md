@@ -61,7 +61,12 @@ composition finishes. Password and non-text controls are excluded.
 
 Code elements, Markdown backtick code, displayed HTTP(S) URLs, and words containing
 `@` stay English. This includes mentions and email addresses in page text, links,
-and editors.
+and editors. Text directly inside an element with a class containing `username`
+(case-insensitive) stays English on any site. The marker does not exclude child
+elements, so containers such as `usernameAndPronounsRow` do not suppress pronouns
+or display names in their own spans. Username fields identified by name, ID, or autocomplete, and password
+fields identified by type or autocomplete, are excluded. Display names without
+a username marker still translate normally.
 Other link labels can render in Norin. Add `data-norin-ignore` to exclude a
 subtree. Text inside images, canvas, existing SVG, closed shadow roots, browser
 UI, CSS-generated content, and native select menus is not translated.
@@ -89,3 +94,22 @@ It checks character mappings, block variants, accents, symbol preservation,
 font isolation, original text, overlays, control updates, exclusions, and toggling.
 A screenshot is saved to the printed temporary directory. Live Discord still
 needs verification after installation.
+
+## Class exclusions
+
+Edit `CLASS_EXCLUSIONS` near the top of the userscript. Strings match exact,
+case-sensitive class names; regexes test each individual class name:
+
+```js
+const CLASS_EXCLUSIONS = [
+  'ExactClassName',
+  /username/i,
+  {match: 'applicationSublabel_nByiE3', subtree: true},
+  {match: /codeBlock|code-block/, subtree: true}
+];
+```
+
+Plain strings and regexes exclude only directly contained text. Use
+`{match: stringOrRegex, subtree: true}` to exclude the element and its descendants.
+This keeps username container classes from suppressing nested pronouns or names.
+Reload the page after editing the settings.
