@@ -456,20 +456,10 @@ for(const [keys,start,stride] of [
   [['air','au','ch','ee','ng','oo','sh','th'],0xE014,3],
   [['b','d','f','g','h','j','k','l','m','n','p','r','s','t','v','w','y','z'],0xE02C,3]
 ])keys.forEach((key,index)=>{fontCodes[key]={code:start+index*stride,mark:stride===4};});
-const defaultReplacements = [];
-
 let replacementRules = [];
 
 function buildReplacementRules(map) {
   const rules = [];
-
-  for (const [from, to] of defaultReplacements) {
-    try {
-      rules.push({ re: new RegExp(escapeRegex(from), 'gu'), repl: to });
-    } catch (e) {
-      rules.push({ re: null, repl: { from, to } });
-    }
-  }
 
   if (map && map.replacements && typeof map.replacements === 'object') {
     for (const [key, val] of Object.entries(map.replacements)) {
@@ -564,7 +554,8 @@ let enabled=true;
 let floatingControl=null;
 const LIMITS={spellings:4000,shapes:1000,templates:2000,views:2500};
 const FRAME_BUDGET_MS=7;
-const GLYPH_SCALE=1;
+// Prepare and retain text well beyond both viewport and nested scroll edges.
+const RENDER_AHEAD_PX=3400;
 const MIN_NORIN_FONT_SIZE=18;
 function norinFontSize(cs){return Math.max(MIN_NORIN_FONT_SIZE,parseFloat(cs.fontSize)||16);}
 const layer=document.createElement('div');
@@ -576,7 +567,7 @@ const renderCSS=`
 :host{all:initial;pointer-events:none}
 .norin-edit-word,.word{position:absolute;width:max-content;white-space:nowrap;transform-origin:0 0;line-height:1}
 .norin-character{font-family:NorinEverywhere}
-.norin-caret{position:absolute;display:block;width:1.5px;pointer-events:none;user-select:none;animation:norin-caret-blink 1s step-end infinite;z-index:2}
+.norin-caret{position:absolute;display:block;width:1px;pointer-events:none;user-select:none;animation:norin-caret-blink 1s step-end infinite;z-index:2}
 @keyframes norin-caret-blink{0%,45%{opacity:1}50%,100%{opacity:0}}
 @media(prefers-reduced-motion:reduce){.norin-caret{animation:none}}
 `;
@@ -585,7 +576,6 @@ shadow.adoptedStyleSheets=[sharedSheet];
 const pageStyle=document.createElement('style');
 pageStyle.textContent=`[data-norin-custom-caret],[data-norin-custom-caret] *{caret-color:transparent!important}
 ::highlight(norin-original){color:transparent;text-shadow:none}
-[data-norin-custom-caret],[data-norin-custom-caret] *{caret-color:transparent!important}
 [data-norin-input]{-webkit-text-fill-color:transparent!important;text-shadow:none!important}
 [data-norin-input]::placeholder{color:transparent!important;-webkit-text-fill-color:transparent!important}`;
 const skip='pre,code,kbd,samp,[data-slate-type="code-block"],[data-slate-type="code-line"],[class*="codeBlock"],[class*="code-block"],area,[data-norin-mount],script,style,noscript,svg,canvas,select,option,title,head,[data-norin-ignore],#norin-userscript-layer';
@@ -613,7 +603,8 @@ function scopeFor(el){
   if(!scopeCache.has(el))scopeCache.set(el,/^(inline|contents)/.test(styleOf(el).display)?scopeFor(el.parentElement):el);
   return scopeCache.get(el);
 }
-function literalLink(el){const link=el?.closest('a,[role="link"]');return !!link&&/^https?:\/\//i.test(link.textContent.trimStart());}
+function literalToken(text){return text.includes('@')||/^https?:\/\//i.test(text);}
+function literalLink(el){const link=el?.closest('a,[role="link"]');return !!link&&literalToken(link.textContent.trimStart());}
 function dirty(record,urgent=false){
   if(!record||record.disposed)return;
   if(urgent){dirtyRecords.delete(record);const rest=[...dirtyRecords];dirtyRecords.clear();dirtyRecords.add(record);for(const r of rest)dirtyRecords.add(r);}
@@ -652,7 +643,7 @@ function addEmoji(element,recover=false){
     record={element:carrier,group,original:carrier.style.getPropertyValue('translate'),priority:carrier.style.getPropertyPriority('translate'),dx:0,desired:0,applied:false,expected:''};
     emojiRecords.set(carrier,record);group.emojis.add(record);
   }else if(record.group!==group){record.group.emojis.delete(record);dirty(record.group);record.group=group;group.emojis.add(record);}
-  if(recover){const r=carrier.getBoundingClientRect();if(r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth&&!group.near){group.near=true;activeRecords.add(group);resize.observe(group.element);}}
+  if(recover){const r=carrier.getBoundingClientRect();if(r.bottom>-RENDER_AHEAD_PX&&r.top<innerHeight+RENDER_AHEAD_PX&&r.right>-RENDER_AHEAD_PX&&r.left<innerWidth+RENDER_AHEAD_PX&&!group.near){group.near=true;activeRecords.add(group);resize.observe(group.element);}}
   if(group.near)dirty(group);
 }
 function restoreEmoji(record){
@@ -677,7 +668,7 @@ function emojiPlacement(record){
   if(el.closest(skip)){restoreEmoji(record);return null;}
   if(record.applied&&el.style.getPropertyValue('translate')!==record.expected){record.applied=false;record.dx=0;record.original=el.style.getPropertyValue('translate');record.priority=el.style.getPropertyPriority('translate');}
   if(!record.applied&&styleOf(el).translate!=='none')return null;
-  const bounds=el.getBoundingClientRect(),size=parseFloat(styleOf(el).fontSize)||16,clip=clipFor(el.parentElement);
+  const bounds=el.getBoundingClientRect(),size=parseFloat(styleOf(el).fontSize)||16,clip=renderClipFor(el.parentElement);
   const rect={left:bounds.left-record.dx,right:bounds.right-record.dx,top:bounds.top,bottom:bounds.bottom,width:bounds.width,height:bounds.height};
   if(!rect.width||!rect.height||rect.height>size*4||rect.right<=clip.left||rect.left>=clip.right||rect.bottom<=clip.top||rect.top>=clip.bottom){restoreEmoji(record);return null;}
   return {kind:'emoji',emoji:record,rect,size,naturalWidth:rect.width};
@@ -700,7 +691,7 @@ function addNode(node,resetRanges=false,recover=false){
   // Ranges are live and may collapse even when a framework writes the same string.
   if(resetRanges)record.text=null;
   if(recover){
-    const rect=node.parentElement.getBoundingClientRect(),clip=clipFor(node.parentElement);
+    const rect=node.parentElement.getBoundingClientRect(),clip=renderClipFor(node.parentElement);
     if(rect.width&&rect.height&&rect.bottom>clip.top&&rect.top<clip.bottom&&rect.right>clip.left&&rect.left<clip.right){
       const missing=record.text!==node.data||record.words.length>0&&!record.words.some(w=>w.box?.isConnected||[...(w.fragments?.values()||[])].some(f=>f.box?.isConnected));
       if(!group.near){group.near=true;activeRecords.add(group);resize.observe(group.element);dirty(group);}
@@ -733,12 +724,12 @@ function track(root,resetRanges=false,recover=false){
 const intersection=new IntersectionObserver(entries=>{
   for(const entry of entries){
     const record=scopes.get(entry.target)||controls.get(entry.target);if(!record)continue;
-    const wasNear=record.near;record.near=entry.isIntersecting;
+    const wasNear=record.near;record.intersecting=entry.isIntersecting;record.near=entry.isIntersecting;
     if(record.near){activeRecords.add(record);resize.observe(record.element);}
     else{activeRecords.delete(record);resize.unobserve(record.element);}
     if(wasNear||record.near)dirty(record);
   }
-},{rootMargin:'160px 0px',threshold:0});
+},{rootMargin:`${RENDER_AHEAD_PX}px`,scrollMargin:`${RENDER_AHEAD_PX}px`,threshold:0});
 const resize=new ResizeObserver(entries=>{
   for(const entry of entries){
     const record=scopes.get(entry.target)||controls.get(entry.target);if(!record)continue;
@@ -785,6 +776,11 @@ function clipFor(el){
     if(/auto|scroll|hidden|clip/.test(cs.overflowY)){c.top=Math.max(c.top,b.top+el.clientTop);c.bottom=Math.min(c.bottom,b.top+el.clientTop+el.clientHeight);}
   }
   clipCache.set(el,c);return c;
+}
+function renderClipFor(el){
+  const clip=clipFor(el);
+  return {left:clip.left-RENDER_AHEAD_PX,right:clip.right+RENDER_AHEAD_PX,
+    top:clip.top-RENDER_AHEAD_PX,bottom:clip.bottom+RENDER_AHEAD_PX};
 }
 function mountFor(owner,group){
   let mount=[...group.mounts].find(m=>m.owner===owner);
@@ -856,7 +852,7 @@ function templateKey(text,cs,flat=false,normalized=false){return JSON.stringify(
 function templateFor(text,cs,group,flat=false,normalized=false){
   const key=templateKey(text,cs,flat,normalized);let t=templates.get(key);
   if(t){templates.delete(key);templates.set(key,t);if(!t.ready)t.waiters.add(group);return t;}
-  t={key,text,flat,normalized,font:cs.fontFamily,weight:cs.fontWeight,fontStyle:cs.fontStyle,color:cs.color,width:null,node:null,ready:false,failed:false,waiters:new Set([group])};
+  t={key,text,flat,normalized,font:cs.fontFamily,weight:cs.fontWeight,fontStyle:cs.fontStyle,color:cs.color,width:null,node:null,ready:false,waiters:new Set([group])};
   templates.set(key,t);if(templates.size>LIMITS.templates)templates.delete(templates.keys().next().value);return t;
 }
 function cellInk(cell){
@@ -865,7 +861,7 @@ function cellInk(cell){
 function finishTemplates(list){
   const probes=[];
   for(const t of new Set(list))if(t.width===null){
-    if(probes.length===8)break;
+    if(probes.length===32)break;
     const probe=shapeFor(t.text,t.flat,t.normalized).cloneNode(true);
     probe.style.cssText='position:absolute;visibility:hidden;font-size:100px;left:0;top:0;width:max-content;line-height:1';
     setStyles(probe,{fontFamily:t.font,fontWeight:t.weight,fontStyle:t.fontStyle,color:t.color});
@@ -888,7 +884,7 @@ function finishTemplates(list){
   for(const {t,probe}of probes){
     t.node=probe.cloneNode(true);t.node.removeAttribute('style');
     setStyles(t.node,{fontFamily:t.font,fontWeight:t.weight,fontStyle:t.fontStyle,color:t.color});
-    t.ready=true;t.failed=false;
+    t.ready=true;
     for(const group of t.waiters)if(group.element.isConnected&&!group.disposed)dirty(group);
     t.waiters.clear();probe.remove();
   }
@@ -960,8 +956,8 @@ function wordRequest(raw,cs,group,cut=null,prepared=null){
 }
 function resolveWord(request){
   if(request.cut===undefined)return request.templates[0];
-  if(request.templates.some(t=>!t.ready&&!t.vectorNode))return {ready:false};
-  const key=JSON.stringify(['editing',request.left?.key,request.right?.key,request.normalized.cut,request.templates.map(t=>t.ready)]);let t=editingViews.get(key);
+  if(request.templates.some(t=>!t.ready))return {ready:false};
+  const key=JSON.stringify(['editing',request.left?.key,request.right?.key,request.normalized.cut]);let t=editingViews.get(key);
   if(t){editingViews.delete(key);editingViews.set(key,t);return t;}
   const leftWidth=request.left?.width||0,shift=leftWidth+CARET_GAP;
   const node=document.createElement('div');node.className='norin-edit-word';
@@ -969,7 +965,7 @@ function resolveWord(request){
     inkTop:request.templates.length?Math.min(...request.templates.map(t=>t.inkTop)):0,inkBottom:request.templates.length?Math.max(...request.templates.map(t=>t.inkBottom)):1,hits:[]};
   node.style.cssText=`position:absolute;width:${t.width}em;height:1em;white-space:nowrap;transform-origin:0 0`;
   for(const [part,x,offset]of [[request.left,0,0],[request.right,shift,request.normalized.cut]])if(part){
-    const image=(part.ready?part.node:part.vectorNode).cloneNode(true);setStyles(image,{position:'absolute',left:`${x}em`,top:'0px'});node.append(image);
+    const segment=part.node.cloneNode(true);setStyles(segment,{position:'absolute',left:`${x}em`,top:'0px'});node.append(segment);
     for(const hit of part.hits||[])t.hits.push({...hit,start:hit.start+offset,end:hit.end+offset,left:hit.left+x,right:hit.right+x});
   }
   editingViews.set(key,t);if(editingViews.size>500)editingViews.delete(editingViews.keys().next().value);return t;
@@ -1002,32 +998,48 @@ function queueCaretUpdate(){
   lastCaret=next;
   for(const caret of [previous,next])if(caret){if(caret.control)dirty(controls.get(caret.element),true);else{const group=textNodes.get(caret.node)?.group;if(group)dirty(group,true);else invalidate(caret.element,true);}}
 }
-function caretBar(existing,color,height){
+function caretAppearance(element){
+  // Our native-caret suppression must not mask the site's original CSS values.
+  const owner=element.closest('[data-norin-custom-caret]');
+  const previous=owner?.getAttribute('data-norin-custom-caret');
+  if(owner)owner.removeAttribute('data-norin-custom-caret');
+  try{
+    const cs=getComputedStyle(element),color=cs.caretColor;
+    return {color:color&&color!=='auto'?color:cs.color,
+      shape:cs.getPropertyValue('caret-shape').trim(),
+      steady:cs.getPropertyValue('caret-animation').trim()==='manual'};
+  }finally{if(owner)owner.setAttribute('data-norin-custom-caret',previous);}
+}
+function caretBar(existing,appearance,height){
   const bar=existing||document.createElement('span');bar.className='norin-caret';bar.setAttribute('aria-hidden','true');
-  setStyles(bar,{backgroundColor:color,height:`${height}px`});return bar;
+  const wide=appearance.shape==='block'||appearance.shape==='underscore';
+  setStyles(bar,{backgroundColor:appearance.color,width:wide?`${height*.6}px`:'1px',
+    height:appearance.shape==='underscore'?'1px':`${height}px`,
+    transform:appearance.shape==='underscore'?`translateY(${height-1}px)`:'none',
+    animationName:appearance.steady?'none':'norin-caret-blink'});return bar;
 }
 function restartCaret(bar,signature){if(bar.dataset.position!==signature){bar.dataset.position=signature;for(const animation of bar.getAnimations())animation.currentTime=0;}}
 function renderTextCaret(group,placements,caret,origins){
   group.caretState=null;
   if(group.caretElement)setStyles(group.caretElement,{display:'none'});
   if(!caret||caret.control)return;
-  const words=placements.filter(p=>p.word.range.startContainer===caret.node&&p.lineReady).sort((a,b)=>a.word.range.startOffset-b.word.range.startOffset);
+  const words=placements.filter(p=>p.word.range.startContainer===caret.node&&p.lineReady&&!p.nativePrefix).sort((a,b)=>a.word.range.startOffset-b.word.range.startOffset);
   if(!words.length)return;
   let selected=words.find(p=>caret.offset>=p.word.range.startOffset&&caret.offset<=p.word.range.endOffset),x;
   if(selected){
     const cut=caret.offset-selected.word.range.startOffset;
-    x=selected.x+(selected.t.editing?selected.t.caretX*selected.size*selected.scale:cut===0?0:selected.naturalWidth*selected.scale);
+    x=selected.x+(selected.t.editing?selected.t.caretX*selected.size:cut===0?0:selected.naturalWidth);
   }else{
     const before=words.filter(p=>p.word.range.endOffset<caret.offset).at(-1),after=words.find(p=>p.word.range.startOffset>caret.offset);
     const from=before?.word.range.endOffset??0,to=after?.word.range.startOffset??caret.node.length;
     if(caret.node.data.slice(from,to).trim())return;
     selected=after||before;if(!selected)return;
-    const left=before?before.x+before.naturalWidth*before.scale:after.x-(after.word.range.startOffset-caret.offset)*selected.size*.35;
+    const left=before?before.x+before.naturalWidth:after.x-(after.word.range.startOffset-caret.offset)*selected.size*.35;
     const right=after?after.x:left+(caret.offset-from)*selected.size*.35;
     x=before&&after?left+(right-left)*(caret.offset-from)/Math.max(1,to-from):before?right:left;
   }
   const {mount,rect:origin}=origins.get(selected.el),height=Math.max(12,selected.size),top=(selected.rect.top+selected.rect.bottom-height)/2;
-  const bar=group.caretElement=caretBar(group.caretElement,selected.cs.color,height);
+  const bar=group.caretElement=caretBar(group.caretElement,caretAppearance(selected.el),height);
   if(bar.parentNode!==mount.root)mount.root.append(bar);
   setStyles(bar,{display:'block',left:`${x-origin.left}px`,top:`${top-origin.top}px`});restartCaret(bar,`${caret.offset}:${x}:${top}`);
   group.caretState={...caret,bar};
@@ -1043,7 +1055,7 @@ function tokenize(record,protectedRanges=[]){
   if(record.text===node.data&&record.codeKey===codeKey)return;record.codeKey=codeKey;
   releaseWords(record,true);record.text=node.data;record.words=[];
   for(const match of node.data.matchAll(/\S+/gu)){
-    if(!/[a-z0-9\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]/i.test(match[0])||/^https?:\/\//i.test(match[0])||protectedRanges.some(s=>match.index<s.end&&match.index+match[0].length>s.start))continue;
+    if(!/[a-z0-9\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]/i.test(match[0])||literalToken(match[0])||protectedRanges.some(s=>match.index<s.end&&match.index+match[0].length>s.start))continue;
     const range=document.createRange();range.setStart(node,match.index);range.setEnd(node,match.index+match[0].length);
     record.words.push({text:match[0],range,box:null,glyph:null,template:null});
   }
@@ -1112,7 +1124,7 @@ function processText(group){
     if(!node.isConnected){dropNode(record);continue;}
     if(!el||el.closest(skip)||literalLink(el)){releaseWords(record);continue;}
     const cs=styleOf(el);if(cs.display==='none'){releaseWords(record);continue;}
-    tokenize(record,protectedRanges.get(node)||[]);const clip=clipFor(el);
+    tokenize(record,protectedRanges.get(node)||[]);const clip=renderClipFor(el);
     for(const word of record.words){
       const rects=[...word.range.getClientRects()].filter(r=>r.width&&r.height);
       if(!rects.some(r=>r.right>clip.left&&r.left<clip.right&&r.bottom>clip.top&&r.top<clip.bottom)){parkWord(word);continue;}
@@ -1147,46 +1159,49 @@ function processText(group){
     const line=originalLine.filter(p=>!p.whole?.fits);
     if(!line.length)continue;
     const ready=line.every(p=>p.kind==='emoji'||p.t.ready&&(!p.wholeCandidate||p.wholeCandidate.t.ready));for(const p of line)p.lineReady=ready;
-    if(!ready)continue; // Keep a whole cold line English until its images can replace it together.
+    if(!ready)continue; // Reveal a complete line only when its text templates are ready.
     line.sort((a,b)=>a.rect.left-b.rect.left);const start=line[0].rect.left;let prev=null;
-    for(const p of line){p.gap=prev?Math.max(Math.min(prev.size,p.size)*.6,p.rect.left-prev.rect.right):0;p.naturalWidth=p.kind==='emoji'?p.rect.width:p.t.width*p.size;prev=p;}
+    for(const p of line){p.gap=prev?Math.max(0,p.rect.left-prev.rect.right):0;p.naturalWidth=p.kind==='emoji'?p.rect.width:p.t.width*p.size;prev=p;}
     // Keep Norin readable at a minimum of 18px, regardless of word or line length.
-    const scale=GLYPH_SCALE;let cursor=start;
-    let previous=null;
+    let cursor=start;
+    let previous=null,translated=false;
     for(const p of line){
+      // Keep leading numbers and symbols native, including their exact spacing.
+      p.nativePrefix=p.kind!=='emoji'&&!translated&&!/[a-z]/i.test(p.word.text);
+      if(p.kind!=='emoji'&&!p.nativePrefix)translated=true;
       const node=p.word?.range.startContainer;
       const barrier=previous&&(p.kind==='emoji'||previous.kind==='emoji'?emojiGapHasText(previous,p):(previous.word.range.startContainer===node?node.data.slice(previous.word.range.endOffset,p.word.range.startOffset).trim():emojiGapHasText(previous,p)));
-      if(barrier)cursor=p.rect.left;else cursor+=p.gap;
+      if(barrier||p.nativePrefix||previous?.nativePrefix)cursor=p.rect.left;else cursor+=p.gap;
       if(p.wholeCandidate){
         const scope=group.element,box=scope.getBoundingClientRect(),scopeStyle=styleOf(scope);
         const right=Math.min(clipFor(p.el).right,box.right-(parseFloat(scopeStyle.paddingRight)||0)-(parseFloat(scopeStyle.borderRightWidth)||0));
         const wholeWidth=p.wholeCandidate.t.width*p.size;
-        if(cursor+wholeWidth*scale<=right+.5){
+        if(cursor+wholeWidth<=right+.5){
           p.wholeCandidate.fits=true;p.word=p.wholeCandidate.word;p.t=p.wholeCandidate.t;p.naturalWidth=wholeWidth;
         }
       }
-      p.x=cursor;p.scale=scale;cursor+=p.naturalWidth*(p.kind==='emoji'?1:scale);
+      p.x=cursor;cursor+=p.naturalWidth;
       if(p.kind==='emoji')p.emoji.desired=p.x-p.rect.left;previous=p;
     }
     const glyphs=line.filter(p=>p.kind!=='emoji');
-    const inkTop=Math.min(...glyphs.map(p=>p.t.inkTop*p.size*scale)),inkBottom=Math.max(...glyphs.map(p=>p.t.inkBottom*p.size*scale));
+    const inkTop=Math.min(...glyphs.map(p=>p.t.inkTop*p.size)),inkBottom=Math.max(...glyphs.map(p=>p.t.inkBottom*p.size));
     const center=(Math.min(...line.map(p=>p.rect.top))+Math.max(...line.map(p=>p.rect.bottom)))/2;
     for(const p of line)p.visualY=center-(inkTop+inkBottom)/2;
   }
   // Create local anchors after reading source geometry; measure each anchor only once.
   const origins=new Map(),used=new Set();
-  for(const el of new Set(placements.filter(p=>p.lineReady).map(p=>p.el))){const mount=mountFor(el,group);origins.set(el,{mount,rect:mount.host.getBoundingClientRect()});}
+  for(const el of new Set(placements.filter(p=>p.lineReady&&!p.nativePrefix).map(p=>p.el))){const mount=mountFor(el,group);origins.set(el,{mount,rect:mount.host.getBoundingClientRect()});}
   for(const p of placements){
-    const {word,t,rect:r,size,scale}=p;
-    if(!p.lineReady){parkWord(word);continue;}
+    const {word,t,rect:r,size}=p;
+    if(!p.lineReady||p.nativePrefix){parkWord(word);continue;}
     reclaimWord(word,t.key);
     if(word.template!==t){word.template=t;if(word.box){word.glyph=t.node.cloneNode(true);word.box.replaceChildren(word.glyph);}}
     if(!word.box){word.box=document.createElement('div');word.box.style.cssText='position:absolute;pointer-events:none;overflow:visible';word.glyph=t.node.cloneNode(true);word.box.append(word.glyph);}
     const {mount,rect:origin}=origins.get(p.el);used.add(mount);
     if(word.box.parentNode!==mount.root)mount.root.append(word.box);
-    const top=r.top-size*.6;
-    setStyles(word.box,{display:'block',left:`${p.x-origin.left}px`,top:`${top-origin.top}px`,width:`${p.naturalWidth*scale}px`,height:`${r.height+size*.85}px`});
-    setStyles(word.glyph,{position:'absolute',left:'0px',top:`${p.visualY-top}px`,fontSize:`${size}px`,fontFamily:p.cs.fontFamily,fontWeight:p.cs.fontWeight,fontStyle:p.cs.fontStyle,color:p.cs.color,transform:`scale(${scale})`});
+    const top=r.top;
+    setStyles(word.box,{display:'block',left:`${p.x-origin.left}px`,top:`${top-origin.top}px`,width:`${p.naturalWidth}px`,height:`${r.height}px`});
+    setStyles(word.glyph,{position:'absolute',left:'0px',top:`${p.visualY-top}px`,fontSize:`${size}px`,fontFamily:p.cs.fontFamily,fontWeight:p.cs.fontWeight,fontStyle:p.cs.fontStyle,color:p.cs.color});
     ranges.push(word.range);
   }
   for(const mount of [...group.mounts])if(!used.has(mount))dropMount(mount);
@@ -1206,7 +1221,7 @@ function mergeRanges(ranges){
 }
 function controlParts(value){
   const parts=[];let offset=0;
-  const normal=text=>{for(const part of text.split(/(\s+)/u))if(part)parts.push({text:part,plain:/^\s+$/.test(part)||/^https?:\/\//i.test(part)});};
+  const normal=text=>{for(const part of text.split(/(\s+)/u))if(part)parts.push({text:part,plain:/^\s+$/.test(part)||literalToken(part)});};
   for(const span of codeSpans(value)){normal(value.slice(offset,span.start));parts.push({text:value.slice(span.start,span.end),plain:true});offset=span.end;}
   normal(value.slice(offset));return parts;
 }
@@ -1214,14 +1229,13 @@ function processControl(group){
   const input=group.element;
   if(!input.isConnected){disposeControl(group);return;}
   if(!group.near){deactivate(group);return;}
-  const cs=styleOf(input),b=input.getBoundingClientRect(),clip=clipFor(input);
+  const cs=styleOf(input),b=input.getBoundingClientRect(),clip=renderClipFor(input);
   if(!b.width||!b.height||b.bottom<=clip.top||b.top>=clip.bottom){deactivate(group);return;}
   let view=group.view;
-  if(!view){view=group.view={box:document.createElement('div'),mirror:document.createElement('div'),signature:null,scrollX:0,scrollY:0,revision:0};view.box.append(view.mirror);group.oldCaret=input.style.caretColor;}
+  if(!view){view=group.view={box:document.createElement('div'),mirror:document.createElement('div'),signature:null,scrollX:0,scrollY:0,revision:0};view.box.append(view.mirror);}
   if(document.activeElement===input&&!Number.isInteger(input.selectionStart)){
     view.customCaret=false;view.box.remove();input.removeAttribute('data-norin-input');group.value=input.value;return;
   }
-  if(document.activeElement===input&&!Number.isInteger(input.selectionStart)){view.customCaret=false;view.box.remove();input.removeAttribute('data-norin-input');group.value=input.value;return;}
   const color=cs.color;group.color=color;const value=input.value||input.placeholder,active=readCaret();
   const caret=active?.control&&active.element===input?active:null,offset=caret?.offset??null;
   const parts=controlParts(value);let sourceOffset=0;
@@ -1236,7 +1250,7 @@ function processControl(group){
   const signature=JSON.stringify([value,offset,...wordTemplates.map(t=>t.key)]);
   if(view.signature!==signature){
     const inkTop=wordTemplates.length?Math.min(...wordTemplates.map(t=>t.inkTop)):0,inkBottom=wordTemplates.length?Math.max(...wordTemplates.map(t=>t.inkBottom)):1;
-    const visualTop=`${(1-(inkTop+inkBottom)*GLYPH_SCALE)*50}%`,fragment=document.createDocumentFragment();let i=0;
+    const visualTop=`${(1-(inkTop+inkBottom))*50}%`,fragment=document.createDocumentFragment();let i=0;
     view.items=[];view.caretAnchor=null;
     function anchor(parent,inline=true,left=0){
       if(view.caretAnchor)return;
@@ -1253,9 +1267,9 @@ function processControl(group){
         else span.textContent=part.text;
         fragment.append(span);view.items.push({...part,node:span});
       }else{
-        const t=wordTemplates[i++],span=document.createElement('span');span.style.cssText=`display:inline-block;position:relative;width:${t.width*GLYPH_SCALE}em;height:1em;vertical-align:baseline`;
-        const word=t.node.cloneNode(true);setStyles(word,{position:'absolute',left:'0px',top:visualTop,fontSize:`${GLYPH_SCALE}em`});span.append(word);
-        if(t.editing)anchor(span,false,t.caretX*GLYPH_SCALE);
+        const t=wordTemplates[i++],span=document.createElement('span');span.style.cssText=`display:inline-block;position:relative;width:${t.width}em;height:1em;vertical-align:baseline`;
+        const word=t.node.cloneNode(true);setStyles(word,{position:'absolute',left:'0px',top:visualTop,fontSize:'inherit'});span.append(word);
+        if(t.editing)anchor(span,false,t.caretX);
         fragment.append(span);view.items.push({...part,t,node:span,glyph:word});
       }
       if(offset===part.end)anchor(fragment);
@@ -1270,7 +1284,7 @@ function processControl(group){
   view.customCaret=!!caret&&!!view.caretAnchor;
   if(view.customCaret){
     const marker=view.caretAnchor.getBoundingClientRect(),mirror=view.mirror.getBoundingClientRect(),height=norinFontSize(cs);
-    const bar=view.caretElement=caretBar(view.caretElement,color,height);if(bar.parentNode!==view.mirror)view.mirror.append(bar);
+    const bar=view.caretElement=caretBar(view.caretElement,caretAppearance(input),height);if(bar.parentNode!==view.mirror)view.mirror.append(bar);
     setStyles(bar,{display:'block',left:`${marker.left-mirror.left}px`,top:`${marker.top-mirror.top+(marker.height-height)/2}px`});restartCaret(bar,`${offset}:${view.revision}`);
     const caretSignature=`${offset}:${view.revision}:${input.clientWidth}:${input.clientHeight}`;
     if(view.caretSignature!==caretSignature){
@@ -1283,11 +1297,10 @@ function processControl(group){
     }
   }else if(view.caretElement)setStyles(view.caretElement,{display:'none'});
   group.value=input.value;setAttr(input,'data-norin-input','');
-  if(input.style.caretColor!==color){input.style.caretColor=color;ownStyles.set(input,input.getAttribute('style'));}
 }
 function disposeControl(group){
   group.disposed=true;group.near=false;group.element.removeAttribute('data-norin-custom-caret');
-  group.view?.box.remove();group.element.removeAttribute('data-norin-input');if(group.oldCaret!==undefined)group.element.style.caretColor=group.oldCaret;
+  group.view?.box.remove();group.element.removeAttribute('data-norin-input');
   for(const mount of [...group.mounts])dropMount(mount);
   intersection.unobserve(group.element);resize.unobserve(group.element);controls.delete(group.element);activeRecords.delete(group);dirtyRecords.delete(group);
 }
@@ -1312,7 +1325,9 @@ function updateSelection(force=false){
   for(const mount of mounts.values()){
     const owner=mount.owner;
     const intersects=!!composingEditor&&(composingEditor===owner||composingEditor.contains(owner))||selected.some(r=>[...owner.childNodes].some(n=>n.nodeType===Node.TEXT_NODE&&n.length&&r.intersectsNode(n)));
-    if(intersects)hidden.add(owner);setStyles(mount.host,{display:enabled&&!intersects?'block':'none'});
+    // Keep the anchor measurable during selection and English mode. display:none
+    // zeroes its rect and makes concurrent redraws save viewport coordinates.
+    if(intersects)hidden.add(owner);setStyles(mount.host,{visibility:enabled&&!intersects?'inherit':'hidden'});
   }
   const signature=[...mounts.values()].filter(m=>hidden.has(m.owner)).map(m=>m.selectionId||(m.selectionId=++selectionId)).join(',');
   if(enabled&&(highlightsDirty||force||signature!==selectionSignature)){
@@ -1390,8 +1405,9 @@ function recoverViewport(){
       const group=indexed[index++];
       if(group.disposed)continue;
       if(!group.element.isConnected){dirty(group);continue;}
-      const box=group.element.getBoundingClientRect(),clip=clipFor(group.element);
-      const near=box.width>0&&box.height>0&&box.bottom>clip.top&&box.top<clip.bottom&&box.right>clip.left&&box.left<clip.right;
+      const box=group.element.getBoundingClientRect(),clip=renderClipFor(group.element);
+      // Do not undo observer prefetch when browser scroll margins extend farther.
+      const near=box.width>0&&box.height>0&&(group.intersecting||box.bottom>clip.top&&box.top<clip.bottom&&box.right>clip.left&&box.left<clip.right);
       if(near){group.near=true;activeRecords.add(group);resize.observe(group.element);dirty(group);}
       else if(group.near){group.near=false;activeRecords.delete(group);resize.unobserve(group.element);dirty(group);}
       if(performance.now()-started>=5)break;
@@ -1444,7 +1460,7 @@ function editingPoint(owner,x,y){
     const node=native.startContainer,offset=native.startOffset,group=textNodes.get(node)?.group;
     if(node.parentElement.closest(skip)||literalLink(node.parentElement))return null;
     if(group&&(protectedCode(group).get(node)||[]).some(span=>offset>=span.start&&offset<=span.end))return null;
-    for(const match of node.data.matchAll(/\S+/gu))if(offset>=match.index&&offset<=match.index+match[0].length&&/^https?:\/\//i.test(match[0]))return null;
+    for(const match of node.data.matchAll(/\S+/gu))if(offset>=match.index&&offset<=match.index+match[0].length&&literalToken(match[0]))return null;
   }
   let best=null,distance=Infinity;
   for(const group of activeRecords)if(group.kind==='text')for(const record of group.nodes)if(owner.contains(record.node))for(const source of record.words)for(const word of source.box?.isConnected?[source]:source.fragments?.values()||[])if(word.box?.isConnected){
@@ -1549,7 +1565,7 @@ function createFloatingToggle(){
   position();sync();floatingControl={host,button,sync};
 }
 function toggle(){
-  enabled=!enabled;if(!enabled){CSS.highlights.delete('norin-original');for(const group of controls.values()){group.element.removeAttribute('data-norin-input');if(group.oldCaret!==undefined)group.element.style.caretColor=group.oldCaret;}}
+  enabled=!enabled;if(!enabled){CSS.highlights.delete('norin-original');for(const group of controls.values()){group.element.removeAttribute('data-norin-input');}}
   else for(const group of activeRecords)dirty(group);
   updateSelection(true);floatingControl?.sync();
 }

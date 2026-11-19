@@ -28,12 +28,15 @@ class CDP {
 }
 function fixture(){
   let script=fs.readFileSync(path.resolve(__dirname,'../norin-everywhere.user.js'),'utf8');
-  script=script.replace("GM_registerMenuCommand('Toggle Norin / English',toggle);",'window.norinTest={renderInto,fontCodes,normalizeText,wordPlan,templates,textNodes,controls,toggle,renderCSS};');
+  script=script.replace("GM_registerMenuCommand('Toggle Norin / English',toggle);",'window.norinTest={renderInto,fontCodes,normalizeText,wordPlan,templates,textNodes,controls,toggle,renderCSS,recoverViewport,controlParts};');
   const font=fs.readFileSync(path.join(__dirname,'fixtures/Norin.ttf')).toString('base64');
   return `<!doctype html><meta charset="utf-8"><style>body{font:20px Arial}p{line-height:40px}</style>
-  <p id="text">Hello world! 123 — &lt; &gt; 😀</p><p><a id="url">https://example.com</a></p><code id="code">hello world</code>
+  <p id="text" style="margin-left:240px;margin-top:70px">Hello world! 123 — &lt; &gt; 😀</p><p><a id="url">https://example.com</a></p><code id="code">hello world</code>
+  <p id="mentions">hello @someone @User.Name username@mail.com world</p><a id="mentionLink" href="https://example.com"><span>@</span><span>Someone</span></a>
+  <h2 id="prefixHeading" style="font:40px Arial;margin-left:120px">1 - A bad title</h2>
   <p id="small" style="font-size:12px">small words</p><p id="large" style="font-size:24px">large words</p><div id="smallEditor" contenteditable="true" style="font-size:10px">small editor</div>
   <textarea id="input" style="font-size:12px">hello world</textarea><div id="editor" contenteditable="true">hello world</div>
+  <div id="scrollPanel" style="position:fixed;left:800px;top:400px;width:400px;height:180px;overflow:auto">${Array.from({length:200},(_,i)=>`<p id="scrollRow${i}" style="height:60px;margin:0">scroll message ${i}</p>`).join('')}</div>
   <script>window.errors=[];addEventListener('error',e=>errors.push(e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));
   GM_xmlhttpRequest=o=>{window.request={url:o.url,type:o.responseType};const bytes=Uint8Array.from(atob('${font}'),c=>c.charCodeAt(0));setTimeout(()=>o.onload({status:200,response:bytes.buffer}),0)};</script><script>${script}</script>`;
 }
@@ -82,10 +85,107 @@ async function main(){
     assert.deepEqual(sizes,{small:18,large:24,editor:18,input:18,original:'12px'});
     await client.evaluate("const input=document.querySelector('#input');input.value='new words!';input.dispatchEvent(new Event('input',{bubbles:true}));",sessionId);await delay(200);
     assert.equal(await client.evaluate("norinTest.controls.get(document.querySelector('#input')).value",sessionId),'new words!');
+    const selectionPositions=await client.evaluate(`(async()=>{
+      const pause=()=>new Promise(r=>setTimeout(r,100));
+      const source=document.querySelector('#text').firstChild,selection=getSelection();
+      const word=()=>norinTest.textNodes.get(source).words[0];
+      const position=()=>{const r=word().glyph.getBoundingClientRect();return {x:r.x,y:r.y}};
+      const before=position();let hidden=true,revealed=true,stable=true;
+      for(let i=0;i<3;i++){
+        const range=document.createRange();range.setStart(source,0);range.setEnd(source,5);selection.removeAllRanges();selection.addRange(range);await pause();
+        hidden&&=getComputedStyle(word().glyph).visibility==='hidden'||getComputedStyle(word().glyph.getRootNode().host).display==='none';
+        revealed&&=![...(CSS.highlights.get('norin-original')||[])].some(r=>r.startContainer===source);
+        // A resize/scroll reconciliation while selected must still measure the real anchor.
+        window.dispatchEvent(new Event('resize'));norinTest.recoverViewport();await pause();
+        selection.removeAllRanges();await pause();
+        const after=position();stable&&=Math.abs(after.x-before.x)<.5&&Math.abs(after.y-before.y)<.5;
+      }
+      return {hidden,revealed,stable};
+    })()`,sessionId);
+    assert.deepEqual(selectionPositions,{hidden:true,revealed:true,stable:true},'selection must not move overlays after a hidden relayout');
+    const prefixPosition=await client.evaluate(`(async()=>{
+      const heading=document.querySelector('#prefixHeading'),source=heading.firstChild;
+      const record=norinTest.textNodes.get(source),selection=getSelection();
+      const range=document.createRange();range.setStart(source,4);range.setEnd(source,5);
+      const nativeX=range.getBoundingClientRect().left;
+      const first=()=>record.words.find(w=>w.text==='A');
+      const initialX=first().box.getBoundingClientRect().left;
+      const prefixNative=record.words.filter(w=>w.text==='1'||w.text==='-').every(w=>!w.box?.isConnected);
+      selection.removeAllRanges();selection.addRange(range);await new Promise(r=>setTimeout(r,100));
+      window.dispatchEvent(new Event('resize'));await new Promise(r=>setTimeout(r,100));
+      selection.removeAllRanges();await new Promise(r=>setTimeout(r,100));
+      return {prefixNative,aligned:Math.abs(initialX-nativeX)<.5,stable:Math.abs(first().box.getBoundingClientRect().left-nativeX)<.5};
+    })()`,sessionId);
+    assert.deepEqual(prefixPosition,{prefixNative:true,aligned:true,stable:true});
+    const editing=await client.evaluate(`(async()=>{
+      const pause=()=>new Promise(r=>setTimeout(r,150));
+      const input=document.querySelector('#input');input.focus();input.setSelectionRange(2,2);input.dispatchEvent(new Event('select',{bubbles:true}));await pause();
+      const view=norinTest.controls.get(input).view;
+      const control=!!view.customCaret&&view.items.some(item=>item.t?.editing&&item.t.ready)&&view.caretElement?.isConnected;
+      const editor=document.querySelector('#editor');editor.focus();getSelection().setPosition(editor.firstChild,2);await pause();
+      const group=norinTest.textNodes.get(editor.firstChild).group;
+      const contenteditable=!!group.caretState?.bar.isConnected&&group.caretState.offset===2;
+      getSelection().removeAllRanges();editor.blur();await pause();
+      return {control:!!control,contenteditable};
+    })()`,sessionId);
+    assert.deepEqual(editing,{control:true,contenteditable:true},'text templates support both input and contenteditable caret segments');
+    const caretStyles=await client.evaluate(`(async()=>{
+      const pause=()=>new Promise(r=>setTimeout(r,150));
+      const input=document.querySelector('#input'),editor=document.querySelector('#editor');
+      input.style.caretColor='rgb(160, 40, 220)';input.style.setProperty('caret-animation','manual');input.style.setProperty('caret-shape','underscore');
+      const originalInputStyle=input.getAttribute('style');
+      input.focus();input.setSelectionRange(2,2);input.dispatchEvent(new Event('select',{bubbles:true}));await pause();
+      const bar=()=>norinTest.controls.get(input).view.caretElement;
+      const initial=getComputedStyle(bar()).backgroundColor;
+      const manual=!CSS.supports('caret-animation','manual')||getComputedStyle(bar()).animationName==='none';
+      const shape=!CSS.supports('caret-shape','underscore')||getComputedStyle(bar()).height==='1px';
+      const untouched=input.getAttribute('style')===originalInputStyle;
+      input.style.caretColor='rgb(220, 90, 30)';await pause();
+      const updated=getComputedStyle(bar()).backgroundColor;
+      norinTest.toggle();await pause();
+      const restored=getComputedStyle(input).caretColor; norinTest.toggle();await pause();
+      editor.style.caretColor='rgb(10, 180, 100)';editor.focus();getSelection().setPosition(editor.firstChild,2);await pause();
+      const group=norinTest.textNodes.get(editor.firstChild).group;
+      const inherited=getComputedStyle(group.caretElement).backgroundColor;
+      window.dispatchEvent(new Event('resize'));await pause();
+      const afterRedraw=getComputedStyle(group.caretElement).backgroundColor;
+      getSelection().removeAllRanges();editor.blur();await pause();
+      return {initial,updated,restored,inherited,afterRedraw,manual,shape,untouched};
+    })()`,sessionId);
+    assert.deepEqual(caretStyles,{initial:'rgb(160, 40, 220)',updated:'rgb(220, 90, 30)',restored:'rgb(220, 90, 30)',inherited:'rgb(10, 180, 100)',afterRedraw:'rgb(10, 180, 100)',manual:true,shape:true,untouched:true});
+    const mentions=await client.evaluate(`(async()=>{
+      const source=document.querySelector('#mentions').firstChild;
+      const words=norinTest.textNodes.get(source).words;
+      const page=words.every(w=>!w.text.includes('@'))&&words.some(w=>w.text==='hello')&&words.some(w=>w.text==='world');
+      const link=[...document.querySelector('#mentionLink').childNodes].every(span=>!norinTest.textNodes.get(span.firstChild)?.words.length);
+      const parts=norinTest.controlParts('hello @someone @User.Name username@mail.com world');
+      const input=document.querySelector('#input');input.value='hello username@mail.com world';input.dispatchEvent(new Event('input',{bubbles:true}));await new Promise(r=>setTimeout(r,150));
+      const item=norinTest.controls.get(input).view.items.find(item=>item.text==='username@mail.com');
+      return {page,link,parts:parts.filter(p=>p.text.includes('@')).every(p=>p.plain),control:!!item?.plain&&item.node.textContent==='username@mail.com',source:source.data};
+    })()`,sessionId);
+    assert.deepEqual(mentions,{page:true,link:true,parts:true,control:true,source:'hello @someone @User.Name username@mail.com world'});
+    const scrolling=await client.evaluate(`(async()=>{
+      const waitFor=async fn=>{for(let i=0;i<150;i++){if(fn())return;await new Promise(r=>setTimeout(r,20));}throw Error('scroll rendering timed out')};
+      const word=i=>norinTest.textNodes.get(document.querySelector('#scrollRow'+i).firstChild)?.words[0];
+      await waitFor(()=>word(15)?.box?.isConnected);
+      const ahead=word(15).box,first=word(0).box;
+      const panel=document.querySelector('#scrollPanel');panel.scrollTop=900;
+      await new Promise(r=>setTimeout(r,200));
+      // Settled-scroll recovery must preserve the same buffer as the observer.
+      norinTest.recoverViewport();await new Promise(r=>setTimeout(r,100));
+      const retained=first.isConnected&&word(15).box===ahead&&ahead.isConnected;
+      panel.scrollTop=0;await new Promise(r=>setTimeout(r,200));
+      const reused=word(0).box===first&&first.isConnected;
+      panel.scrollTop=9000;
+      await waitFor(()=>word(150)?.box?.isConnected);
+      await new Promise(r=>setTimeout(r,200));
+      return {retained,reused,distantCulled:!first.isConnected,visibleReady:word(150).box.isConnected,source:document.querySelector('#scrollRow150').firstChild.data};
+    })()`,sessionId);
+    assert.deepEqual(scrolling,{retained:true,reused:true,distantCulled:true,visibleReady:true,source:'scroll message 150'});
     await client.evaluate('norinTest.toggle()',sessionId);assert.equal(await client.evaluate("CSS.highlights.has('norin-original')",sessionId),false);
     await client.evaluate('norinTest.toggle()',sessionId);await delay(200);
     const screenshot=await client.call('Page.captureScreenshot',{format:'png'},sessionId);fs.writeFileSync(path.join(temporary,'preview.png'),Buffer.from(screenshot.data,'base64'));
-    console.log('Font mappings, variants, accents, symbols, font isolation, overlays, controls, exclusions and toggle: passed');
+    console.log('Font mappings, variants, accents, symbols, font isolation, overlays, controls, exclusions, toggle and buffered scrolling: passed');
     console.log('Preview: '+path.join(temporary,'preview.png'));
   }finally{client.socket.close();chrome.kill();}
 }

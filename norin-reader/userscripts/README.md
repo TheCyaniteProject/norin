@@ -28,7 +28,9 @@ A vowel following an eligible character becomes its accent. Groups of three
 characters use full, top, and bottom variants. Uppercase vowels remain full
 characters, and all-caps words remain unstacked. The font controls glyph
 placement and advance widths; there are no SVG downloads, word images, manually
-positioned glyphs, or special punctuation placement rules.
+positioned glyphs, or special punctuation placement rules. The old SVG accent
+padding, glyph scaling, and vector/image fallback paths have also been removed.
+Text bounds are still measured for overlay alignment and editing hit testing.
 
 Norin overlays use a minimum font size of 18px, including inputs and editors.
 Larger text keeps its original size, and English mode retains the site's sizing.
@@ -40,18 +42,36 @@ Hyphens, quotes, and dashes are no longer rewritten for custom symbol spacing.
 
 Original page text, input values, and editor DOM stay English beneath isolated,
 non-interactive text overlays. Copying, sending, accessibility, search, and
-keyboard editing continue to use English. Selecting text reveals English.
-Inputs, textareas, and contenteditable editors have mapped carets; the active
+keyboard editing continue to use English. Selecting text reveals English. Hidden overlays retain their positioning anchors,
+so selection followed by a resize or scroll does not shift the restored text.
+Leading numbers and symbols (for example, `1 - ` before a title) retain their
+native positions, and the first translated word starts at its English position.
+Word flow uses the original whitespace widths without a forced minimum gap.
+Inputs, textareas, and contenteditable editors have mapped carets. The overlay
+copies the source caret color (including transparent), honors supported
+`caret-shape` and `caret-animation: manual` settings, and respects reduced motion.
+Caret height follows the rendered Norin size. Native inline caret styles are
+left intact. OS blink timing and native caret thickness are not exposed to page
+JavaScript; the fallback is a 1px blinking bar, with approximate block/underscore
+widths when those shapes are supported.
+
+For editing, the active
 word temporarily unpacks around the caret. IME composition uses English until
 composition finishes. Password and non-text controls are excluded.
 
-Code elements, Markdown backtick code, and displayed HTTP(S) URLs stay English.
+Code elements, Markdown backtick code, displayed HTTP(S) URLs, and words containing
+`@` stay English. This includes mentions and email addresses in page text, links,
+and editors.
 Other link labels can render in Norin. Add `data-norin-ignore` to exclude a
 subtree. Text inside images, canvas, existing SVG, closed shadow roots, browser
 UI, CSS-generated content, and native select menus is not translated.
 
 Viewport tracking, mutation updates, scrolling recovery, spelling/template caches,
-and detached-view reuse keep work focused on visible content. Overlays follow
+and detached-view reuse keep work focused on nearby content. A 3,400px buffer
+around the viewport and nested scroll panels prepares text before it appears
+and retains it after it leaves view, so short scrolls reuse mounted overlays.
+Settled-scroll recovery uses the same buffer. Font templates are prepared in
+batches of up to 32 while retaining the frame budget; distant text is still culled. Overlays follow
 the original page's line positions and clipping. Specialized editors and unusual
 transforms may still need site-specific adjustments.
 
