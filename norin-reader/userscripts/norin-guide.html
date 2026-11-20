@@ -1,0 +1,1807 @@
+<!doctype html>
+<html lang="en" data-norin-ignore>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="A short introduction to the Norin alphabet, spelling conventions, English-to-Norin conversion, and reading practice."
+    />
+    <title>The First Book of Norin</title>
+    <style>
+      @font-face {
+        font-family: Norin;
+        src: url("https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/Norin.ttf")
+          format("truetype");
+        font-display: swap;
+        unicode-range: U+E000-E061;
+      }
+      :root {
+        --paper: #faf7ef;
+        --ink: #253b3c;
+        --muted: #647474;
+        --line: #d9ded4;
+        --accent: #a5442e;
+        --wash: #edf1e9;
+        --serif: Georgia, "Times New Roman", serif;
+        --sans:
+          system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 24px;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font: 18px/1.7 var(--serif);
+      }
+      a {
+        color: inherit;
+        text-underline-offset: 4px;
+      }
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+      button,
+      summary {
+        cursor: pointer;
+      }
+      button {
+        border: 1px solid var(--ink);
+        background: transparent;
+        color: var(--ink);
+        padding: 8px 15px;
+        border-radius: 3px;
+        font: 13px var(--sans);
+      }
+      button:hover {
+        background: var(--wash);
+      }
+      :focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 4px;
+      }
+      .shell {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 830px) 220px;
+        gap: 65px;
+        max-width: 1472px;
+        margin: auto;
+        padding: 46px 36px 80px;
+      }
+      .sidebar {
+        align-self: start;
+        position: sticky;
+        top: 38px;
+        font: 13px/1.5 var(--sans);
+      }
+      .brand {
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        font-size: 12px;
+      }
+      .sidebar ol {
+        list-style: none;
+        padding: 0;
+        margin: 34px 0;
+      }
+      .sidebar li {
+        margin: 0 0 18px;
+      }
+      .sidebar a {
+        text-decoration: none;
+        display: block;
+      }
+      .sidebar a:hover {
+        color: var(--accent);
+      }
+      .sidebar .number {
+        color: var(--accent);
+        margin-right: 10px;
+        font-variant-numeric: tabular-nums;
+      }
+      .sidebar p {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .book {
+        min-width: 0;
+      }
+      .eyebrow,
+      .label,
+      .running,
+      .chapter-no {
+        font: 11px/1.5 var(--sans);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .eyebrow {
+        color: var(--accent);
+        margin-bottom: 25px;
+      }
+      .cover {
+        padding: 30px 0 60px;
+        border-bottom: 1px solid var(--ink);
+      }
+      h1 {
+        font-size: clamp(48px, 6vw, 82px);
+        line-height: 1.04;
+        font-weight: 400;
+        letter-spacing: -0.045em;
+        margin: 0 0 28px;
+        max-width: 640px;
+      }
+      h1 em {
+        color: var(--accent);
+        font-weight: 400;
+      }
+      h2 {
+        font-size: 38px;
+        line-height: 1.15;
+        font-weight: 400;
+        margin: 10px 0 25px;
+        letter-spacing: -0.025em;
+      }
+      h3 {
+        font-size: 24px;
+        font-weight: 400;
+        margin: 32px 0 10px;
+      }
+      p {
+        margin: 0 0 18px;
+      }
+      .lede {
+        font-size: 22px;
+        max-width: 640px;
+        line-height: 1.5;
+      }
+      .cover > .lede {
+        margin-bottom: 51px;
+      }
+      .lesson-intro {
+        margin-top: 36px;
+        padding-top: 24px;
+        border-top: 1px solid var(--line);
+      }
+      .cover-sample {
+        display: flex;
+        gap: 25px;
+        align-items: center;
+        margin-top: 35px;
+        padding: 24px 0;
+        border-top: 1px solid var(--line);
+      }
+      .cover-sample .norin {
+        font-size: 42px;
+      }
+      .cover-sample .label {
+        color: var(--muted);
+      }
+      .meta {
+        display: flex;
+        gap: 22px;
+        flex-wrap: wrap;
+        font: 12px var(--sans);
+        color: var(--muted);
+      }
+      section.chapter {
+        padding: 48px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .running {
+        display: flex;
+        justify-content: space-between;
+        color: var(--muted);
+        margin-bottom: 24px;
+      }
+      .chapter-no {
+        color: var(--accent);
+      }
+      .note {
+        border-left: 3px solid var(--accent);
+        padding: 8px 0 8px 18px;
+        color: var(--muted);
+        font-size: 16px;
+        margin: 24px 0;
+      }
+      .norin {
+        font-family: Norin, var(--serif);
+        font-size: 30px;
+        line-height: 1.8;
+        overflow-wrap: anywhere;
+        letter-spacing: normal;
+        text-transform: none;
+      }
+      .alphabet {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 1px;
+        background: var(--line);
+        border: 1px solid var(--line);
+        margin: 18px 0 25px;
+      }
+      .accent-example {
+        background: var(--paper);
+        padding: 18px 5px;
+        text-align: center;
+      }
+      .accent-example .norin {
+        display: block;
+        font-size: 38px;
+      }
+      .accent-example .latin {
+        font: 12px var(--sans);
+      }
+      .letter {
+        background: var(--paper);
+        padding: 15px 5px;
+        text-align: center;
+      }
+      .letter .norin {
+        display: block;
+        font-size: 38px;
+      }
+      .letter .latin {
+        font: 13px var(--sans);
+      }
+      .example {
+        border-top: 1px solid var(--line);
+        padding: 18px 0;
+        break-inside: avoid;
+      }
+      .example-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 25px;
+      }
+      .label {
+        color: var(--muted);
+        margin-bottom: 5px;
+      }
+      .example p {
+        margin: 0;
+      }
+      .spelling {
+        font: 13px/1.6 var(--sans);
+        color: var(--muted);
+        margin-top: 8px !important;
+      }
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 12px 8px;
+        text-align: left;
+      }
+      th {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      td.norin {
+        font-size: 32px;
+      }
+      .steps {
+        padding-left: 22px;
+      }
+      .steps li {
+        padding-left: 8px;
+        margin-bottom: 12px;
+      }
+      .rule-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 16px;
+      }
+      .rule-table th {
+        font-family: var(--sans);
+      }
+      .rule-table td {
+        vertical-align: top;
+      }
+      .lab {
+        background: var(--wash);
+        padding: 26px;
+        margin: 25px 0;
+        border: 1px solid var(--line);
+      }
+      .lab label {
+        font: 13px var(--sans);
+        display: block;
+        margin-bottom: 10px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 100px;
+        padding: 14px;
+        background: var(--paper);
+        border: 1px solid #a8b5ae;
+        border-radius: 2px;
+        color: var(--ink);
+        resize: vertical;
+        font: 17px/1.6 var(--serif);
+      }
+      .options {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 12px 0 18px;
+        font: 13px var(--sans);
+      }
+      .options label {
+        margin: 0;
+      }
+      .lab-output {
+        min-height: 90px;
+        background: var(--paper);
+        padding: 15px;
+        overflow-wrap: anywhere;
+      }
+      .lab .spelling {
+        overflow-wrap: anywhere;
+      }
+      .practice {
+        padding: 20px 0;
+        border-top: 1px solid var(--line);
+        break-inside: avoid;
+      }
+      .practice summary {
+        font: 13px var(--sans);
+        color: var(--accent);
+        padding: 8px 0;
+      }
+      .practice details > div {
+        padding: 10px 16px;
+        background: var(--wash);
+        font-size: 16px;
+      }
+      .practice .norin {
+        margin-bottom: 10px;
+      }
+      .exercise-no {
+        font: 12px var(--sans);
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .footer {
+        padding: 30px 0;
+        font: 13px/1.7 var(--sans);
+        color: var(--muted);
+      }
+      #font-status {
+        margin-top: 16px;
+        font: 12px/1.6 var(--sans);
+        color: var(--muted);
+      }
+      body.font-unavailable .norin {
+        display: none;
+      }
+      body.font-unavailable .lab-output:after {
+        content: "Norin examples need the font. English and spelling guides are still available.";
+        font: 14px/1.6 var(--sans);
+      }
+      .print-title {
+        display: none;
+      }
+      @media (max-width: 1200px) {
+        .shell {
+          grid-template-columns: 1fr;
+          gap: 15px;
+          padding: 25px 24px;
+        }
+        .sidebar {
+          position: static;
+          border-bottom: 1px solid var(--line);
+          padding-bottom: 20px;
+        }
+        .sidebar ol {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px 20px;
+          margin: 18px 0;
+        }
+        .sidebar li {
+          margin: 0;
+        }
+        .sidebar p {
+          display: none;
+        }
+        .cover {
+          padding-top: 20px;
+        }
+        .alphabet {
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 520px) {
+        body {
+          font-size: 17px;
+        }
+        .shell {
+          padding: 22px 18px;
+        }
+        .example-grid {
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        .alphabet {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        .cover-sample {
+          display: block;
+        }
+        .lab {
+          padding: 18px;
+        }
+        h2 {
+          font-size: 32px;
+        }
+        .norin {
+          font-size: 28px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+      @media print {
+        @page {
+          margin: 18mm;
+        }
+        body {
+          background: white;
+          font-size: 11pt;
+          color: #111;
+        }
+        .shell {
+          display: block;
+          max-width: none;
+          padding: 0;
+        }
+        .sidebar,
+        .lab,
+        .footer button,
+        #font-status {
+          display: none;
+        }
+        .cover {
+          min-height: 200mm;
+          padding-top: 30mm;
+          border: 0;
+          break-after: page;
+        }
+        .cover h1 {
+          font-size: 60pt;
+        }
+        .chapter {
+          break-before: page;
+        }
+        .chapter h2 {
+          font-size: 30pt;
+        }
+        h3 {
+          break-after: avoid;
+        }
+        .norin {
+          font-size: 23pt;
+        }
+        .alphabet {
+          grid-template-columns: repeat(6, 1fr);
+        }
+        .letter {
+          background: white;
+        }
+        .practice details > div {
+          display: block !important;
+        }
+        .practice details:not([open]) > div {
+          display: block !important;
+        }
+        .print-title {
+          display: block;
+        }
+        .example-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+        a {
+          text-decoration: none;
+        }
+      }
+      .reading-order {
+        margin: 26px 0;
+        break-inside: avoid;
+      }
+      .reading-order svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        background: #172426;
+        border-radius: 3px;
+      }
+      .reading-order figcaption {
+        font: 13px/1.6 var(--sans);
+        color: var(--muted);
+        margin-top: 10px;
+      }
+      .reading-order .diagram-number {
+        font-family: system-ui, sans-serif;
+        font-weight: 600;
+        font-size: 76px;
+        text-anchor: middle;
+      }
+      .reading-order .diagram-label {
+        font-family: system-ui, sans-serif;
+        font-size: 15px;
+        letter-spacing: 2px;
+        text-anchor: middle;
+      }
+      @media print {
+        .reading-order svg {
+          background: white;
+        }
+        .reading-order .diagram-base {
+          color: #111;
+        }
+        .reading-order .diagram-muted {
+          color: #777;
+        }
+        .reading-order .diagram-arrow {
+          color: #111;
+        }
+        .reading-order .diagram-label {
+          fill: #333;
+        }
+      }
+      .writing-lines {
+        height: 144px;
+        margin: 24px 0;
+        background: repeating-linear-gradient(
+          to bottom,
+          transparent 0,
+          transparent 46px,
+          var(--line) 47px,
+          transparent 48px
+        );
+        break-inside: avoid;
+      }
+
+      .translator {
+        position: fixed;
+        top: 46px;
+        left: calc(50% + 480px);
+        width: clamp(220px, calc(50vw - 520px), 320px);
+        max-height: calc(100dvh - 92px);
+        overflow: auto;
+        z-index: 5;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--paper);
+        box-shadow: 0 5px 24px #253b3c0b;
+        font-family: var(--sans);
+      }
+      .translator > summary {
+        padding: 14px 18px;
+        font-size: 13px;
+        font-weight: 600;
+        list-style: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+      }
+      .translator > summary::-webkit-details-marker {
+        display: none;
+      }
+      .translator > summary::after {
+        content: "+";
+        color: var(--muted);
+        font-size: 18px;
+        font-weight: 400;
+      }
+      .translator[open] > summary::after {
+        content: "−";
+      }
+      .translator[open] > summary {
+        border-bottom: 1px solid var(--line);
+      }
+      .translator .input-section,
+      .translator .result-section {
+        padding: 17px 18px;
+      }
+      .translator label,
+      .translator .output-label {
+        display: block;
+        color: var(--muted);
+        font: 11px/1.5 var(--sans);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin: 0 0 10px;
+      }
+      .translator textarea {
+        display: block;
+        border: 0;
+        background: transparent;
+        padding: 0;
+        min-height: 110px;
+        height: 130px;
+        max-height: 28vh;
+        font: 18px/1.6 var(--serif);
+        resize: vertical;
+        border-radius: 0;
+      }
+      .translator textarea:focus-visible {
+        outline-offset: 5px;
+      }
+      .translator .result-section {
+        border-top: 1px solid var(--line);
+        background: var(--wash);
+      }
+      .translator .norin {
+        min-height: 70px;
+        max-height: 35vh;
+        overflow: auto;
+        white-space: pre-wrap;
+        font-size: 29px;
+        margin-bottom: 18px;
+      }
+      .translator .latin-result {
+        font: 14px/1.6 var(--sans);
+        color: var(--muted);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        margin: 0;
+      }
+      .translator .latin-label {
+        font: 10px/1.5 var(--sans);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        margin-bottom: 5px;
+      }
+      body.font-unavailable .translator .norin {
+        display: block;
+        font: 14px/1.6 var(--sans);
+      }
+      @media (max-width: 1439px) {
+        .translator {
+          left: auto;
+          right: 16px;
+          top: auto;
+          bottom: 16px;
+          width: min(340px, calc(100vw - 32px));
+          max-height: calc(100dvh - 32px);
+          box-shadow: 0 5px 25px #253b3c20;
+        }
+        .translator:not([open]) {
+          width: auto;
+        }
+        .translator textarea {
+          height: 100px;
+          min-height: 80px;
+        }
+        .translator .norin {
+          min-height: 45px;
+          max-height: 25vh;
+        }
+      }
+      @media print {
+        .translator {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside aria-label="Practice translator">
+      <details class="translator" id="practice-translator">
+        <summary>Practice translator</summary>
+        <div class="input-section">
+          <label for="translator-english">English</label><textarea
+            id="translator-english"
+            rows="4"
+            maxlength="2000"
+            placeholder="Type a word or sentence…"
+            spellcheck="false"
+          ></textarea>
+        </div>
+        <div class="result-section">
+          <div class="output-label" id="translator-norin-label">Norin</div>
+          <div
+            class="norin"
+            id="translator-norin"
+            role="status"
+            aria-labelledby="translator-norin-label"
+          ></div>
+          <div class="latin-label" id="translator-latin-label">
+            Latin spelling
+          </div>
+          <p
+            class="latin-result"
+            id="translator-latin"
+            aria-labelledby="translator-latin-label"
+          ></p>
+        </div>
+      </details>
+    </aside>
+    <div class="shell">
+      <aside class="sidebar" aria-label="Book navigation">
+        <div class="brand">NORIN / FIELD NOTES</div>
+        <nav aria-label="Contents">
+          <ol>
+            <li>
+              <a href="#begin"
+                ><span class="number">00</span>Before you begin</a>
+            </li>
+            <li>
+              <a href="#alphabet"><span class="number">01</span>The alphabet</a>
+            </li>
+            <li>
+              <a href="#spelling"
+                ><span class="number">02</span>Spelling &amp; grammar</a>
+            </li>
+            <li>
+              <a href="#translation"
+                ><span class="number">03</span>From English to Norin</a>
+            </li>
+            <li>
+              <a href="#practice"
+                ><span class="number">04</span>Reading practice</a>
+            </li>
+            <li>
+              <a href="#reference"
+                ><span class="number">05</span>Pocket reference</a>
+            </li>
+          </ol>
+        </nav>
+        <button type="button" id="print-book">Print / save as PDF</button>
+        <p>
+          A small book to read slowly.<br />Learn a few signs. Read a line.<br />Come
+          back tomorrow.
+        </p>
+      </aside>
+      <main class="book">
+        <header class="cover" id="begin">
+          <div class="eyebrow">A beginner’s companion · First edition</div>
+          <h1>The first book<br />of <em>Norin.</em></h1>
+          <p class="lede">
+            A compact and phonetic way to write English, with a little bit of
+            magic.
+          </p>
+          <p>
+            In my teens, I was obsessed with codes. Little secret messages that
+            only you and your friends could read. I would spend hours inventing
+            little micro-languages that would survive for days or weeks, until I
+            made new ones.
+          </p>
+          <p>
+            As I moved into my early twenties, that passion turned into a love
+            of language. Not any language in particular, really, just languages
+            as a whole. I studied Japanese, German, Italian, French, Spanish,
+            and a bunch of others to varying degrees. Among them, Japanese was
+            my favorite.
+          </p>
+          <p>
+            Japanese kana has this sort of predictability that makes reading and
+            learning feel consistent. Being able to look at a word written in
+            kana and know how to pronounce it, along with how pleasing it is to
+            look at, was such an interesting concept to me as a native English
+            speaker.
+          </p>
+          <p>
+            It was around that point that I started messing around with conlangs
+            (constructed languages). Conlangs were particularly interesting to
+            me: whole languages and writing systems created for different
+            purposes. Obviously, I tried to make a few myself, but none of them
+            ever reached a point I was happy with.
+          </p>
+          <p>
+            Eventually, I started on a language called Senarseha and an
+            accompanying writing system called RunikBlu. RunikBlu was heavily
+            inspired by Japanese and Nordic runes, and I quickly fell in love
+            with it. Over time, however, Senarseha and RunikBlu ended up
+            forgotten like the others.
+          </p>
+          <p>
+            Years later, I rediscovered RunikBlu and wanted to give it the love
+            it deserved. So I remade it from scratch and created Norin.
+          </p>
+          <p>
+            Norin is a (mostly)phonetic writing system for English. I wanted it
+            to inspire that same sense of wonder I got from learning languages,
+            while also having some practical uses, like being dyslexia-friendly
+            and compact. It brings together my love of languages, fantasy, and
+            secret messages, while still being easy to learn and read.
+          </p>
+          <p>
+            While it’s intended to be used with phonetic spelling and grammar
+            adjustments for English, it can also be used without changing the
+            grammar. It can even be used for some other languages, to varying
+            degrees.
+          </p>
+          <p>
+            Norin is my oldest passion project, and I’m glad to be able to share
+            it with you.
+          </p>
+          <p class="lesson-intro">
+            I’ll start with the signs, then walk you through spelling and
+            reading sentences. English and Norin examples sit side by side so
+            you can check your reading as you go. You don’t need to memorize the
+            whole alphabet before trying your first words.
+          </p>
+          <div class="cover-sample">
+            <div>
+              <div class="label">Your first line</div>
+              <span class="norin" data-english="We read together."></span>
+            </div>
+            <div>
+              <div class="label">English</div>
+              We read together.
+            </div>
+          </div>
+          <div class="meta">
+            <span>31 base signs</span><span>5 vowel accents</span><span>5 short chapters</span>
+          </div>
+          <p id="font-status" role="status">
+            Loading the Norin font from GitHub…
+          </p>
+          <noscript
+            ><p class="note">
+              Enable JavaScript to see the alphabet and Norin examples. The
+              English lessons remain readable below.
+            </p></noscript>
+        </header>
+        <section class="chapter" id="alphabet">
+          <div class="running">
+            <span>The signs</span><span>Chapter 01</span>
+          </div>
+          <div class="chapter-no">Start with recognition</div>
+          <h2>Meet the alphabet.</h2>
+          <p>
+            Norin is a way to write English. You’re learning new signs and
+            spelling conventions, but you should speak the sentences as English.
+            The characters represent sounds, including common English sounds
+            such as <em>sh</em> and <em>ee</em> that English writes with more
+            than one letter. Read from left to right.
+          </p>
+          <h3>The five vowels</h3>
+          <p>
+            I suggest learning the full vowel signs first. Once those look
+            familiar, try their accent forms: a vowel written as a small mark on
+            the preceding sign.
+          </p>
+          <div
+            class="alphabet"
+            id="vowel-alphabet"
+            aria-label="Vowel alphabet"
+          ></div>
+          <h3>Reading vowel accents</h3>
+          <p>
+            The vowel characters above are shown on their own so you can learn
+            their shapes. In a word, A, E, I, O, and U normally become accents
+            on the character before them. A vowel at the start of a word keeps
+            its full shape. Read the character first, then its accent.
+          </p>
+          <p>
+            Here’s the same B character with each of the five vowel accents. The
+            labels underneath show the reading order. These are short character
+            exercises, so there’s no spelling conversion to work out.
+          </p>
+          <div class="alphabet" aria-label="Five vowel accents attached to B">
+            <div class="accent-example">
+              <span class="norin" data-spelling="ba"></span><span class="latin">B + A · ba</span>
+            </div>
+            <div class="accent-example">
+              <span class="norin" data-spelling="be"></span><span class="latin">B + E · be</span>
+            </div>
+            <div class="accent-example">
+              <span class="norin" data-spelling="bi"></span><span class="latin">B + I · bi</span>
+            </div>
+            <div class="accent-example">
+              <span class="norin" data-spelling="bo"></span><span class="latin">B + O · bo</span>
+            </div>
+            <div class="accent-example">
+              <span class="norin" data-spelling="bu"></span><span class="latin">B + U · bu</span>
+            </div>
+          </div>
+          <h3>At the start, or after a character?</h3>
+          <div class="example">
+            <div class="example-grid">
+              <div>
+                <div class="label">at · A starts the word</div>
+                <span class="norin" data-spelling="at"></span>
+              </div>
+              <div>
+                <div class="label">bat · A follows B</div>
+                <span class="norin" data-spelling="bat"></span>
+              </div>
+            </div>
+            <p class="spelling">
+              at: full A → T. &nbsp; bat: B with an A accent → T.
+            </p>
+          </div>
+          <p>
+            In <em>at</em>, there’s no character before the A, so I write the
+            full A. In <em>bat</em>, the A sits on the B as an accent. You still
+            read <em>b-a-t</em>; the vowel hasn’t disappeared, it’s just taking
+            up less space.
+          </p>
+          <h3>When one vowel follows another</h3>
+          <p>
+            If a vowel follows another vowel, write the second one as a full
+            character. It can then take its own position in a block. You don’t
+            put two vowel accents on the same character.
+          </p>
+          <p>
+            Take <em>boat</em>. The O becomes an accent on B. The A follows that
+            O, so the A is a full character. That leaves three characters to
+            arrange into a block: B with its O accent, then A, then T.
+          </p>
+          <div class="example">
+            <div class="example-grid">
+              <div>
+                <div class="label">boat · unstacked</div>
+                <span
+                  class="norin"
+                  data-spelling="boat"
+                  data-flat="true"
+                ></span>
+              </div>
+              <div>
+                <div class="label">boat · one block</div>
+                <span class="norin" data-spelling="boat"></span>
+              </div>
+            </div>
+            <p class="spelling">
+              Position 1: B with an O accent. &nbsp; Position 2: full A, fitted
+              into the block. &nbsp; Position 3: T.
+            </p>
+          </div>
+          <p class="note">
+            This applies to the five vowels A, E, I, O, and U. Characters such
+            as EE and OO represent their own sounds and don’t have vowel-accent
+            forms. For example, <em>we</em> is written with W and the EE
+            character, not W and an E accent.
+          </p>
+
+          <h3>Eight common sounds</h3>
+          <p>
+            These are new characters for common sounds in English. I use
+            familiar English spellings to label them here, but each is a
+            character in its own right.
+          </p>
+          <div
+            class="alphabet"
+            id="sound-alphabet"
+            aria-label="Characters for eight common sounds"
+          ></div>
+          <h3>The remaining letters</h3>
+          <p>
+            These are the 18 consonant and consonant-like signs, including
+            <em>y</em>. There are no separate base signs for <em>c</em>,
+            <em>q</em>, or <em>x</em>; the spelling conventions normally use
+            other characters for their sounds, but you can write those letters
+            normally if you're not using our grammar.
+          </p>
+          <div
+            class="alphabet"
+            id="consonant-alphabet"
+            aria-label="Remaining letters"
+          ></div>
+          <h3>How a block is built</h3>
+          <p>
+            I use <em>sinogram blocks</em> to fit more writing into less space.
+            Their arrangement is inspired by Korean Hangul. You always read the
+            signs in the same order, so a compact block can still be read one
+            sign at a time.
+          </p>
+          <figure class="reading-order">
+            <svg
+              viewBox="0 0 760 310"
+              role="img"
+              aria-labelledby="block-order-title block-order-description"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <title id="block-order-title">Norin block reading order</title>
+              <desc id="block-order-description">
+                Read the full sign on the left first, the top-right sign second,
+                and the bottom-right sign third. The arrow then continues upward
+                and right toward the next block.
+              </desc>
+              <defs>
+                <marker
+                  class="diagram-arrow"
+                  color="#fff"
+                  id="reading-order-arrowhead"
+                  viewBox="0 0 12 12"
+                  refX="7"
+                  refY="6"
+                  markerWidth="3.5"
+                  markerHeight="3.5"
+                  orient="auto-start-reverse"
+                >
+                  <path
+                    d="M2 2 L10 6 L2 10"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linejoin="miter"
+                  />
+                </marker>
+              </defs>
+              <g class="diagram-base" color="#fff" fill="currentColor">
+                <path
+                  d="M150 42 V250 M150 146 H282"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="22"
+                />
+                <text class="diagram-number" x="80" y="205">1</text>
+                <text class="diagram-number" x="218" y="117">2</text>
+                <text class="diagram-number" x="218" y="237">3</text>
+              </g>
+              <g class="diagram-muted" color="#8d9695" fill="currentColor">
+                <path
+                  d="M505 42 V250 M505 146 H637"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="22"
+                />
+                <text class="diagram-number" x="435" y="205">1</text>
+                <text class="diagram-number" x="573" y="117">2</text>
+                <text class="diagram-number" x="573" y="237">3</text>
+              </g>
+              <g class="diagram-arrow" color="#fff">
+                <path
+                  d="M426 191 L579 106 V225 L671 151"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="11"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  marker-end="url(#reading-order-arrowhead)"
+                />
+              </g>
+              <g fill="#c1ceca">
+                <text class="diagram-label" x="180" y="289">POSITIONS</text>
+                <text class="diagram-label" x="550" y="289">READING PATH</text>
+              </g>
+            </svg>
+            <figcaption>
+              <strong>1 → 2 → 3.</strong> Start at the full sign on the left,
+              move to the upper right, then the lower right. Continue to the
+              next block.
+            </figcaption>
+          </figure>
+          <ol class="steps">
+            <li>Recognize the base signs and any vowel accents.</li>
+            <li>
+              A block holds three characters: one full-size character on the
+              left, then two smaller characters on the upper and lower right.
+              Read them in that order.
+            </li>
+            <li>
+              One or two signs left over use their full forms. Spaces and
+              punctuation separate runs.
+            </li>
+          </ol>
+          <div class="example">
+            <div class="example-grid">
+              <div>
+                <div class="label">Unstacked · same spelling</div>
+                <span class="norin" data-spelling="bdf" data-flat="true"></span>
+              </div>
+              <div>
+                <div class="label">
+                  One block · left, upper right, lower right
+                </div>
+                <span class="norin" data-spelling="bdf"></span>
+              </div>
+            </div>
+            <p class="spelling">
+              b → d → f · A sign-order exercise, not a word.
+            </p>
+          </div>
+          <h3>Accents inside a block</h3>
+          <p>
+            An accent stays with its character when that character moves into a
+            block. It doesn’t take up one of the three reading positions. Here’s
+            <em>flat</em> both ways:
+          </p>
+          <div class="example">
+            <div class="example-grid">
+              <div>
+                <div class="label">flat · unstacked</div>
+                <span
+                  class="norin"
+                  data-spelling="flat"
+                  data-flat="true"
+                ></span>
+              </div>
+              <div>
+                <div class="label">flat · one block</div>
+                <span class="norin" data-spelling="flat"></span>
+              </div>
+            </div>
+            <p class="spelling">
+              Position 1: F. &nbsp; Position 2: L with an A accent. &nbsp;
+              Position 3: T.
+            </p>
+          </div>
+          <p>
+            Read the left character as F, the upper-right character and its
+            accent as LA, then the lower-right character as T. The result is
+            still <em>flat</em>. Once you recognize an accent, try reading it
+            together with the character carrying it.
+          </p>
+        </section>
+        <section class="chapter" id="spelling">
+          <div class="running">
+            <span>The conventions</span><span>Chapter 02</span>
+          </div>
+          <div class="chapter-no">Keep the mouth in mind</div>
+          <h2>Write the shape of the word.</h2>
+          <p>
+            I base Norin spelling on how a word sounds, how your mouth forms it,
+            and which letters help you recognize it. “Mostly phonetic” matters
+            here: I don’t remove every unvoiced letter. If you still mouth a
+            letter, or it provides useful context, it can stay.
+          </p>
+          <table class="rule-table">
+            <thead>
+              <tr>
+                <th>Convention</th>
+                <th>English → working spelling</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Keep useful mouthed letters.</td>
+                <td>hope → hope<br />boat → boat<br />comb → komb</td>
+              </tr>
+              <tr>
+                <td>Use established word exceptions.</td>
+                <td>
+                  write → rit<br />have → hav<br />said → sed<br />does → duz
+                </td>
+              </tr>
+              <tr>
+                <td>Use the appropriate consonant.</td>
+                <td>cat → kat<br />quick → kwik<br />phone → fone</td>
+              </tr>
+              <tr>
+                <td>Soften G in known words, not every word.</td>
+                <td>giant → jiant<br />magic → majik<br />give → give</td>
+              </tr>
+              <tr>
+                <td>Shorten common doubled letters.</td>
+                <td>hello → helo<br />happy → hapi</td>
+              </tr>
+              <tr>
+                <td>Use I for a final vowel Y, including before plural S.</td>
+                <td>boy → boi<br />boys → bois<br />yes → yes</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="example" data-pair="A giant has a phone."></div>
+          <p class="note">
+            I use “working spelling” for the Latin-letter step between English
+            and Norin signs. For example, <em>write → rit</em> shows you which
+            signs to choose before you arrange them into a block. Say the word,
+            notice how your mouth forms it, then choose the characters you need.
+            The working spelling helps you keep track while you’re learning; you
+            don’t need to write it out every time.
+          </p>
+          <h3>Grammar stays familiar.</h3>
+          <p>
+            Keep the grammar you already use in English: word order, verb
+            tenses, questions, and punctuation all stay familiar. I’m changing
+            how the words are written, so you can focus on reading the signs
+            without learning a new sentence structure.
+          </p>
+          <ul class="steps">
+            <li>
+              <strong>Statements:</strong> keep the subject, verb, and remaining
+              words in their English order.
+            </li>
+            <li>
+              <strong>Questions:</strong> keep English question order and the
+              question mark.
+            </li>
+            <li>
+              <strong>Endings:</strong> retain grammatical endings; their
+              written letters may change under the spelling rules.
+            </li>
+            <li>
+              <strong>A special convention:</strong> I change the whole word
+              <em>and</em> to <em>y</em>. This is a reference to spanish, and
+              also why the symbol for <em>y</em> looks like a short-hand & sign.
+            </li>
+          </ul>
+          <div class="example" data-pair="Birds sing and fish swim."></div>
+          <div class="example" data-pair="Can you help?"></div>
+        </section>
+        <section class="chapter" id="translation">
+          <div class="running">
+            <span>The method</span><span>Chapter 03</span>
+          </div>
+          <div class="chapter-no">Three passes</div>
+          <h2>From a sentence to signs.</h2>
+          <ol class="steps">
+            <li>
+              <strong>Start with the English.</strong> Preserve its meaning,
+              word order, and punctuation.
+            </li>
+            <li>
+              <strong>Apply the spelling conventions.</strong> Work out which
+              sounds the word uses and apply the word exceptions. Keep useful
+              mouthed letters in mind, too.
+            </li>
+            <li>
+              <strong>Read the signs.</strong> Choose the characters for those
+              sounds, attach eligible vowel accents, then form the three-sign
+              blocks.
+            </li>
+          </ol>
+          <div class="example" data-pair="She said yes."></div>
+          <div class="example" data-pair="The boys play outside."></div>
+          <div class="example" data-pair="Bring a pen and paper."></div>
+          <h3>Write your first sentence.</h3>
+          <p>
+            Try <em>We can help.</em> on paper. Start with the working spelling,
+            <em>wee kan help.</em> Choose the characters, add the vowel accents,
+            then arrange the characters into blocks. Keep a clear space between
+            words.
+          </p>
+          <ol class="steps">
+            <li>
+              <strong>Work one word at a time.</strong> A vowel at the start of
+              a word stands on its own. A vowel after a non-vowel character is
+              written as an accent. A vowel following another vowel stays full.
+            </li>
+            <li>
+              <strong>Build the blocks in reading order.</strong> Write the left
+              character first, then the upper right, then the lower right. Keep
+              each accent with the character it belongs to.
+            </li>
+            <li>
+              <strong>Read your sentence back.</strong> Follow the same path you
+              used to write it. Check that the words are separated and the
+              accents are clear.
+            </li>
+          </ol>
+          <div class="example" data-pair="We can help."></div>
+          <p>
+            Copy the example once, then cover it and try again. After that,
+            change a word or write a short sentence of your own.
+          </p>
+          <div class="writing-lines" aria-hidden="true"></div>
+          <p>
+            Use familiar punctuation and leave enough room between words that
+            you can find where each one starts. You’re aiming for writing you
+            can comfortably read back, not a perfect copy of the font.
+          </p>
+        </section>
+        <section class="chapter" id="practice">
+          <div class="running">
+            <span>The reading room</span><span>Chapter 04</span>
+          </div>
+          <div class="chapter-no">Read first. Reveal second.</div>
+          <h2>A little practice, every day.</h2>
+          <p>
+            Start by finding the spaces between words. Read the full sign and
+            its vowel accent, if it has one, then move through the top and
+            bottom signs. Try saying the sentence before opening the answer. If
+            you get stuck, check one word and have another go.
+          </p>
+          <h3>Lesson A · familiar words</h3>
+          <div
+            class="practice"
+            data-reading="rain"
+            data-tip="The A is an accent on R. The following I stays full."
+          ></div>
+          <div
+            class="practice"
+            data-reading="boys"
+            data-tip="The Y before plural S changes to I: bois."
+          ></div>
+          <div
+            class="practice"
+            data-reading="write"
+            data-tip="The word exception is rit. Do not insert an A."
+          ></div>
+          <h3>Lesson B · short sentences</h3>
+          <div
+            class="practice"
+            data-reading="The cat is happy."
+            data-tip="Cat is written kat, and happy becomes hapi. Keep the English word order."
+          ></div>
+          <div
+            class="practice"
+            data-reading="Bring your red book."
+            data-tip="Book uses the OO character. Read it as one sound character, not two O accents."
+          ></div>
+          <div
+            class="practice"
+            data-reading="Fish and chips."
+            data-tip="Look for the SH and CH characters, and the standalone Y representing and."
+          ></div>
+          <h3>Lesson C · a small paragraph</h3>
+          <div
+            class="practice"
+            data-reading="The sun is up. Birds sing in the trees. I take my pen and write."
+            data-tip="Read one sentence at a time. A full stop works exactly as it does in English."
+          ></div>
+          <h3>Write your own line</h3>
+          <p>
+            Pick a few signs you recognize, then try a short sentence of your
+            own. Write it on paper, then read it back one word at a time. Use
+            the alphabet and worked examples if you need a reminder. You can
+            learn the shape of a whole word and still come back to its
+            individual signs whenever you need to.
+          </p>
+        </section>
+        <section class="chapter" id="reference">
+          <div class="running">
+            <span>Keep this page close</span><span>Chapter 05</span>
+          </div>
+          <div class="chapter-no">Pocket reference</div>
+          <h2>The essentials, at a glance.</h2>
+          <ul class="steps">
+            <li>
+              <strong>31 base signs:</strong> five vowel characters, eight
+              characters for additional common sounds, and 18 other characters.
+            </li>
+            <li>
+              <strong>Read left to right:</strong> left character → upper-right
+              character → lower-right character within a block.
+            </li>
+            <li>
+              <strong>Vowel accents:</strong> read the accent after the sign
+              carrying it.
+            </li>
+            <li>
+              <strong>Spelling:</strong> preserve useful mouth shape and
+              context, not just voiced sounds.
+            </li>
+            <li>
+              <strong>Grammar:</strong> keep the English sentence structure.
+            </li>
+            <li>
+              <strong>Check your writing:</strong> read each character and its
+              accent in order, then read the whole word.
+            </li>
+          </ul>
+
+          <p class="note">
+            Try a little at a time: recognize five signs, read three words, then
+            read one sentence without opening the answer. Come back to the
+            alphabet whenever you need it.
+          </p>
+        </section>
+        <footer class="footer">
+          <p>A first book of Norin · A guide to reading and writing.</p>
+          <p>
+            The examples use <a href="https://github.com/TheCyaniteProject/norin/blob/main/norin-font/Norin.ttf"
+              >my Norin font</a>. When writing by hand, follow the character shapes and reading order shown here.
+          </p>
+          <a href="#begin">Back to the beginning ↑</a>
+        </footer>
+      </main>
+    </div>
+    <!-- Spelling-rule snapshot from norin-everywhere.user.js. Refresh this JSON when its rules change. -->
+    <script id="spelling-rules" type="application/json">
+      {
+        "’": "'",
+        "“": "\"",
+        "”": "\"",
+        "—": "-",
+        "00devcomment_case": "Phonetic rules below are lowercase-only so uppercase can pass through mostly unchanged.",
+        "write_word": { "regex": "\\b[Ww]rite\\b", "replace": "rit" },
+        "writes_word": { "regex": "\\b[Ww]rites\\b", "replace": "rits" },
+        "writer_word": { "regex": "\\b[Ww]riter\\b", "replace": "riter" },
+        "writers_word": { "regex": "\\b[Ww]riters\\b", "replace": "riters" },
+        "writing_word": { "regex": "\\b[Ww]riting\\b", "replace": "riting" },
+        "written_word": { "regex": "\\b[Ww]ritten\\b", "replace": "riten" },
+        "have_word": { "regex": "\\b[Hh]ave\\b", "replace": "hav" },
+        "has_word": { "regex": "\\b[Hh]as\\b", "replace": "haz" },
+        "said_word": { "regex": "\\b[Ss]aid\\b", "replace": "sed" },
+        "says_word": { "regex": "\\b[Ss]ays\\b", "replace": "sez" },
+        "does_word": { "regex": "\\b[Dd]oes\\b", "replace": "duz" },
+        "was_word": { "regex": "\\b[Ww]as\\b", "replace": "wuz" },
+        "were_word": { "regex": "\\b[Ww]ere\\b", "replace": "wur" },
+        "soft_g_initial": {
+          "regex": "\\b[Gg](?=(?:iants?|yms?|ymnast(?:s|ic|ics)?|ems?|erms?|entle|ently|eneral(?:s|ly)?|eneration(?:s)?|enius(?:es)?|iraffes?)\\b)",
+          "replace": "j"
+        },
+        "soft_g_words": {
+          "regex": {
+            "\\b([Mm]a)g(?=ic(?:al|ally)?\\b)": "$1j",
+            "\\b([Ee]n)g(?=ine(?:s|er|ers|ering)?\\b)": "$1j",
+            "\\b([Dd]an)g(?=er(?:s|ous|ously)?\\b)": "$1j",
+            "\\b([Oo]ran)g(?=es?\\b)": "$1j",
+            "\\b([Aa])g(?=e(?:s|d|ing)?\\b)": "$1j",
+            "\\b([Pp]a|[Cc]a|[Ll]ar|[Hh]u|[Cc]han|[Ss]ta)g(?=e(?:s|d)?\\b)": "$1j"
+          }
+        },
+        "im_contraction": { "regex": "\\b[Ii]'m\\b", "replace": "i am" },
+        "ive_contraction": { "regex": "\\b[Ii]'ve\\b", "replace": "i have" },
+        "ill_contraction": { "regex": "\\b[Ii]'ll\\b", "replace": "i will" },
+        "and_word": { "regex": "\\b[Aa]nd\\b", "replace": "y" },
+        "he_word": { "regex": "\\b[Hh]e\\b", "replace": "hee" },
+        "she_word": { "regex": "\\b[Ss]he\\b", "replace": "shee" },
+        "me_word": { "regex": "\\b[Mm]e\\b", "replace": "mee" },
+        "we_word": { "regex": "\\b[Ww]e\\b", "replace": "wee" },
+        "be_word": { "regex": "\\b[Bb]e\\b", "replace": "bee" },
+        "one_word": { "regex": "\\b[Oo]ne\\b", "replace": "won" },
+        "once_word": { "regex": "\\b[Oo]nce\\b", "replace": "wuns" },
+        "two_word": { "regex": "\\b[Tt]wo\\b", "replace": "too" },
+        "of_word": { "regex": "\\b[Oo]f\\b", "replace": "uv" },
+        "done_word": { "regex": "\\b[Dd]one\\b", "replace": "dun" },
+        "some_word": { "regex": "\\b[Ss]ome\\b", "replace": "sum" },
+        "come_word": { "regex": "\\b[Cc]ome\\b", "replace": "kum" },
+        "from_word": { "regex": "\\b[Ff]rom\\b", "replace": "frum" },
+        "people_word": { "regex": "\\b[Pp]eople\\b", "replace": "peepul" },
+        "woman_word": { "regex": "\\b[Ww]oman\\b", "replace": "wuman" },
+        "could_word": { "regex": "\\b[Cc]ould\\b", "replace": "kud" },
+        "would_word": { "regex": "\\b[Ww]ould\\b", "replace": "wud" },
+        "should_word": { "regex": "\\b[Ss]hould\\b", "replace": "shud" },
+        "young_word": { "regex": "\\b[Yy]oung\\b", "replace": "yung" },
+        "touch_word": { "regex": "\\b[Tt]ouch\\b", "replace": "tuch" },
+        "blood_word": { "regex": "\\b[Bb]lood\\b", "replace": "blud" },
+        "great_word": { "regex": "\\b[Gg]reat\\b", "replace": "grait" },
+        "break_word": { "regex": "\\b[Bb]reak\\b", "replace": "braik" },
+        "steak_word": { "regex": "\\b[Ss]teak\\b", "replace": "staik" },
+        "who_word": { "regex": "\\b[Ww]ho\\b", "replace": "hoo" },
+        "whole_word": { "regex": "\\b[Ww]hole\\b", "replace": "hol" },
+        "through_word": { "regex": "\\b[Tt]hrough\\b", "replace": "throo" },
+        "though_word": { "regex": "\\b[Tt]hough\\b", "replace": "tho" },
+        "thought_word": { "regex": "\\b[Tt]hought\\b", "replace": "thaut" },
+        "bought_word": { "regex": "\\b[Bb]ought\\b", "replace": "baut" },
+        "rough_word": { "regex": "\\b[Rr]ough\\b", "replace": "ruf" },
+        "tough_word": { "regex": "\\b[Tt]ough\\b", "replace": "tuf" },
+        "enough_word": { "regex": "\\b[Ee]nough\\b", "replace": "enuf" },
+        "cough_word": { "regex": "\\b[Cc]ough\\b", "replace": "kof" },
+        "bough_word": { "regex": "\\b[Bb]ough\\b", "replace": "bau" },
+        "laugh_word": { "regex": "\\b[Ll]augh\\b", "replace": "laf" },
+        "laughing_word": { "regex": "\\b[Ll]aughing\\b", "replace": "lafing" },
+        "laughter_word": { "regex": "\\b[Ll]aughter\\b", "replace": "lafter" },
+        "sch": { "regex": { "[Ss]ch": "sk" } },
+        "tch": { "regex": { "[Tt]ch": "ch" } },
+        "dge": { "regex": "dge", "replace": "j" },
+        "aigh": { "regex": "aigh", "replace": "ai" },
+        "eigh": { "regex": "eigh", "replace": "ai" },
+        "igh": { "regex": "igh", "replace": "ai" },
+        "augh": { "regex": "augh", "replace": "au" },
+        "tion": { "regex": "tion", "replace": "shon" },
+        "sion": { "regex": "sion", "replace": "shon" },
+        "tial": { "regex": "tial", "replace": "shal" },
+        "cial": { "regex": "cial", "replace": "shal" },
+        "tian": { "regex": "tian\\b", "replace": "shan" },
+        "cian": { "regex": "cian\\b", "replace": "shan" },
+        "oar": { "regex": "oar", "replace": "or" },
+        "rea": { "regex": "[Rr]ea", "replace": "ree" },
+        "wr": { "regex": "\\bwr", "replace": "r" },
+        "kn": { "regex": "\\bkn", "replace": "n" },
+        "gn": { "regex": "\\bgn", "replace": "n" },
+        "ps": { "regex": "\\bps", "replace": "s" },
+        "pn": { "regex": "\\bpn", "replace": "n" },
+        "pt": { "regex": "\\bpt", "replace": "t" },
+        "rh": { "regex": "\\brh", "replace": "r" },
+        "qu": { "regex": "[Qq]u", "replace": "kw" },
+        "q": { "regex": { "q": "k", "Q": "K" } },
+        "ph": { "regex": { "[Pp]h": "f", "PH": "F" } },
+        "air": {
+          "regex": {
+            "eir": "air",
+            "(th)ere(?=[^a-z]|$)": "$1air",
+            "(wh)ere(?=[^a-z]|$)": "$1air",
+            "([bwp])ear(?=[^a-z]|$)": "$1air",
+            "(?\u003c=[^aeiou])are(?=[^a-z]|$)": "air",
+            "([Tt]h)ey'?re(?=[^a-z]|$)": "$1air'"
+          }
+        },
+        "wh": { "regex": "[Ww]h", "replace": "w" },
+        "ck": { "regex": { "[Cc]k": "k", "CK": "kk" } },
+        "sc": {
+          "regex": {
+            "sc(?=[eiy])": "s",
+            "sc": "sk",
+            "[Ss]c(?=[eiy])": "s",
+            "[Ss]c": "sk",
+            "SC(?=[eiy])": "S",
+            "SC": "SK"
+          }
+        },
+        "cc": {
+          "regex": {
+            "[Cc]c(?=[eiy])": "ks",
+            "[Cc]c": "k",
+            "CC(?=[eiy])": "KS",
+            "CC": "KK"
+          }
+        },
+        "dg": { "regex": "dg(?=[eiy])", "replace": "j" },
+        "c": {
+          "regex": {
+            "c(?=[eiy])": "s",
+            "c(?![heiy])": "k",
+            "C(?=[eiy])": "S",
+            "C(?![heiy])": "K"
+          }
+        },
+        "gh_before_t_silent": {
+          "regex": "(?\u003c=[aeiou])gh(?=t)",
+          "replace": ""
+        },
+        "gh_final_silent": {
+          "regex": "(?\u003c=[aeiou])gh(?=[^a-z]|$)",
+          "replace": ""
+        },
+        "x_initial": { "regex": "\\bx", "replace": "z" },
+        "x_medial": {
+          "regex": "(?\u003c=[aeiou])x(?=[aeiou])",
+          "replace": "gz"
+        },
+        "x_default": { "regex": "x", "replace": "ks" },
+        "ll": "l",
+        "tt": "t",
+        "ff": "f",
+        "ss": "s",
+        "bb": "b",
+        "dd": "d",
+        "gg": "g",
+        "mm": "m",
+        "nn": "n",
+        "pp": "p",
+        "rr": "r",
+        "final_y": {
+          "regex": "(?\u003c=[a-z]{2})y(?=s?(?:[^a-z]|$))",
+          "replace": "i"
+        }
+      }
+    </script>
+    <script>
+      "use strict";
+      const entries = Object.create(null);
+      const families = [
+        ["a e i o u", 0xe000, 4],
+        ["air au ch ee ng oo sh th", 0xe014, 3],
+        ["b d f g h j k l m n p r s t v w y z", 0xe02c, 3],
+      ];
+      for (const [labels, start, stride] of families)
+        labels.split(" ").forEach(
+          (key, index) =>
+            (entries[key] = {
+              code: start + index * stride,
+              accent: stride === 4,
+            }),
+        );
+      const keys = Object.keys(entries).sort((a, b) => b.length - a.length);
+      const ruleData = JSON.parse(
+          document.getElementById("spelling-rules").textContent,
+        ),
+        rules = [];
+      const escapeRegex = (value) =>
+        value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      for (const [key, value] of Object.entries(ruleData)) {
+        if (typeof value === "string") {
+          if (/^[a-z]+$/i.test(key))
+            rules.push([new RegExp(escapeRegex(key), "gu"), value]);
+          continue;
+        }
+        const flags = value.flags || "gu";
+        if (typeof value.regex === "string")
+          rules.push([new RegExp(value.regex, flags), value.replace || ""]);
+        else if (value.regex)
+          for (const [pattern, replacement] of Object.entries(value.regex))
+            rules.push([new RegExp(pattern, flags), replacement]);
+      }
+      const literal = (text) =>
+        text.includes("@") || /^https?:\/\//i.test(text);
+      function workingSpelling(text) {
+        return text
+          .split(/(\s+)/u)
+          .map((part) => {
+            if (literal(part)) return part;
+            let result = part.normalize("NFC").replace(/\u00ad/g, "");
+            for (const [pattern, replacement] of rules)
+              result = result.replace(pattern, replacement);
+            return result;
+          })
+          .join("");
+      }
+      function norinWord(text, flat) {
+        const tokens = [];
+        for (let i = 0; i < text.length; ) {
+          const key = keys.find(
+            (key) => text.slice(i, i + key.length).toLowerCase() === key,
+          );
+          if (!key) {
+            const char = String.fromCodePoint(text.codePointAt(i));
+            tokens.push({ literal: char });
+            i += char.length;
+            continue;
+          }
+          const entry = entries[key],
+            previous = tokens.at(-1),
+            upper = text.slice(i, i + key.length) === key.toUpperCase();
+          if (entry.accent && previous?.key && !previous.accent && !upper)
+            previous.accent = entry.code + 3;
+          else tokens.push({ key, code: entry.code });
+          i += key.length;
+        }
+        const allCaps = text === text.toUpperCase() && /[A-Z]/.test(text);
+        const emit = (token, variant = 0) =>
+          (token.literal ?? String.fromCodePoint(token.code + variant)) +
+          (token.accent ? String.fromCodePoint(token.accent) : "");
+        let result = "";
+        for (let i = 0; i < tokens.length; ) {
+          if (
+            !flat &&
+            !allCaps &&
+            tokens.slice(i, i + 3).length === 3 &&
+            tokens.slice(i, i + 3).every((token) => token.key)
+          ) {
+            result +=
+              emit(tokens[i]) + emit(tokens[i + 1], 1) + emit(tokens[i + 2], 2);
+            i += 3;
+          } else result += emit(tokens[i++]);
+        }
+        return result;
+      }
+      function translate(text, { flat = false, normalized = false } = {}) {
+        const spelling = normalized ? text : workingSpelling(text);
+        return spelling
+          .split(/(\s+)/u)
+          .map((part) =>
+            /^\s+$/.test(part) || literal(part) ? part : norinWord(part, flat),
+          )
+          .join("");
+      }
+      function glyph(key) {
+        const span = document.createElement("span");
+        span.className = "norin";
+        span.textContent = String.fromCodePoint(entries[key].code);
+        span.setAttribute("aria-label", `${key} character`);
+        return span;
+      }
+      for (const [id, index] of [
+        ["vowel-alphabet", 0],
+        ["sound-alphabet", 1],
+        ["consonant-alphabet", 2],
+      ]) {
+        for (const key of families[index][0].split(" ")) {
+          const cell = document.createElement("div");
+          cell.className = "letter";
+          cell.append(glyph(key));
+          const label = document.createElement("span");
+          label.className = "latin";
+          label.textContent = key;
+          cell.append(label);
+          document.getElementById(id).append(cell);
+        }
+      }
+      for (const el of document.querySelectorAll("[data-pair]")) {
+        const english = el.dataset.pair,
+          grid = document.createElement("div");
+        grid.className = "example-grid";
+        for (const [label, text, isNorin] of [
+          ["English", english, false],
+          ["Norin", translate(english), true],
+        ]) {
+          const column = document.createElement("div"),
+            caption = document.createElement("div"),
+            content = document.createElement("div");
+          caption.className = "label";
+          caption.textContent = label;
+          content.textContent = text;
+          if (isNorin) {
+            content.className = "norin";
+            content.setAttribute("aria-label", english);
+          }
+          column.append(caption, content);
+          grid.append(column);
+        }
+        const spelling = document.createElement("p");
+        spelling.className = "spelling";
+        spelling.textContent = "Working spelling: " + workingSpelling(english);
+        el.append(grid, spelling);
+      }
+      for (const el of document.querySelectorAll(
+        "[data-english],[data-spelling]",
+      )) {
+        const english = el.dataset.english ?? el.dataset.spelling;
+        el.textContent = translate(english, {
+          normalized: el.hasAttribute("data-spelling"),
+          flat: el.dataset.flat === "true",
+        });
+        el.setAttribute("aria-label", english);
+      }
+      for (const el of document.querySelectorAll("[data-gloss]"))
+        el.textContent =
+          "Working spelling: " + workingSpelling(el.dataset.gloss);
+      let exercise = 0;
+      for (const el of document.querySelectorAll("[data-reading]")) {
+        const english = el.dataset.reading,
+          count = document.createElement("div");
+        count.className = "exercise-no";
+        count.textContent = "Reading " + String(++exercise).padStart(2, "0");
+        const line = document.createElement("div");
+        line.className = "norin";
+        line.textContent = translate(english);
+        line.setAttribute(
+          "aria-label",
+          `Reading exercise ${exercise}. Open the answer for English.`,
+        );
+        const details = document.createElement("details"),
+          summary = document.createElement("summary");
+        summary.textContent = "Reveal English & spelling";
+        const answer = document.createElement("div");
+        const text = document.createElement("p");
+        text.textContent = english;
+        const spelling = document.createElement("p");
+        spelling.className = "spelling";
+        spelling.textContent = "Working spelling: " + workingSpelling(english);
+        const tip = document.createElement("p");
+        tip.textContent = el.dataset.tip;
+        answer.append(text, spelling, tip);
+        details.append(summary, answer);
+        el.append(count, line, details);
+      }
+      const translatorPanel = document.getElementById("practice-translator");
+      const wideScreen = matchMedia("(min-width:1440px)");
+      translatorPanel.open = wideScreen.matches;
+      wideScreen.addEventListener("change", (event) => {
+        translatorPanel.open = event.matches;
+      });
+      const translatorInput = document.getElementById("translator-english");
+      function updateTranslator() {
+        const text = translatorInput.value,
+          output = document.getElementById("translator-norin");
+        output.textContent = document.body.classList.contains(
+          "font-unavailable",
+        )
+          ? "The Norin font is unavailable. Reload to try again."
+          : translate(text);
+        output.setAttribute(
+          "aria-label",
+          text ? `Norin rendering of: ${text}` : "Norin translation",
+        );
+        document.getElementById("translator-latin").textContent =
+          workingSpelling(text);
+      }
+      translatorInput.addEventListener("input", updateTranslator);
+      updateTranslator();
+      document
+        .getElementById("print-book")
+        .addEventListener("click", () => window.print());
+      const status = document.getElementById("font-status");
+      Promise.race([
+        document.fonts.load("32px Norin", "\uE000"),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(Error("Font download timed out")), 15000),
+        ),
+      ])
+        .then((fonts) => {
+          if (!fonts.length) throw Error("Font unavailable");
+          status.textContent =
+            "Norin font ready · English and Norin examples below.";
+        })
+        .catch(() => {
+          document.body.classList.add("font-unavailable");
+          status.textContent =
+            "The Norin font could not load from GitHub. Check your connection and reload; the English lessons remain available.";
+          updateTranslator();
+        });
+    </script>
+  </body>
+</html>
