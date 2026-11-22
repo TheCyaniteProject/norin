@@ -13,11 +13,15 @@
 
 (() => {
 'use strict';
+
 // Prepare and retain text well beyond both viewport and nested scroll edges. High values may cause lag.
-const RENDER_AHEAD_PX=3400;
+const RENDER_AHEAD_PX=5000;
 
 // Minimum rendered font size in CSS pixels.
 const MIN_NORIN_FONT_SIZE=18;
+
+// Downward visual adjustment for Norin glyphs only, in em.
+const NORIN_GLYPH_OFFSET_EM=.1;
 
 // Font source (update @connect too if changing the host).
 const FONT_URL='https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/Norin.ttf';
@@ -35,10 +39,27 @@ const CARET_GAP=.22;
 const TEMPLATE_BATCH_SIZE=32;
 
 // Polling interval for silent form-control changes, in milliseconds.
-const CONTROL_POLL_MS=500;
+const CONTROL_POLL_MS=300;
 
 // Font download timeout, in milliseconds.
-const FONT_DOWNLOAD_TIMEOUT_MS=20000;
+const FONT_DOWNLOAD_TIMEOUT_MS=2000;
+
+// Case-insensitive words/emotes to leave in the original font.
+// Matches require a literal space on each side, or the start/end of the text.
+const WORD_EXCLUSIONS = [
+  ':D',
+  'xD',
+  'c:',
+  ':c',
+  ';o',
+  ';p',
+  'c;',
+  ';D',
+  ':o',
+  'Cx',
+  'x3',
+  '3x'
+];
 
 // Settings: strings match an exact, case-sensitive class name. Regexes test
 // each class name (use /pattern/i for case-insensitive matching).
@@ -50,6 +71,8 @@ const CLASS_EXCLUSIONS = [
   {match: 'applicationSublabel_nByiE3', subtree: true},
   {match: /codeBlock|code-block/, subtree: true}
 ];
+
+
 let phoneticMap;
 let phoneticKeys = [];
 const bundledMappings = {
@@ -598,6 +621,7 @@ const renderCSS=`
 :host{all:initial;pointer-events:none}
 .norin-edit-word,.word{position:absolute;width:max-content;white-space:nowrap;transform-origin:0 0;line-height:1}
 .norin-character{font-family:NorinEverywhere}
+.norin-positioned .norin-character{position:relative;top:${NORIN_GLYPH_OFFSET_EM}em}
 .norin-input-mirror>*{flex-shrink:0}
 .norin-caret{position:absolute;display:block;width:1px;pointer-events:none;user-select:none;animation:norin-caret-blink 1s step-end infinite;z-index:2}
 @keyframes norin-caret-blink{0%,45%{opacity:1}50%,100%{opacity:0}}
@@ -653,6 +677,10 @@ function scopeFor(el){
   if(!el)return document.body;
   if(!scopeCache.has(el))scopeCache.set(el,/^(inline|contents)/.test(styleOf(el).display)?scopeFor(el.parentElement):el);
   return scopeCache.get(el);
+}
+function excludedWord(word,text,start){
+  const end=start+word.length;
+  return WORD_EXCLUSIONS.some(entry=>entry.toLowerCase()===word.toLowerCase())&&(start===0||text[start-1]===' ')&&(end===text.length||text[end]===' ');
 }
 function literalToken(text){return text.includes('@')||/^https?:\/\//i.test(text);}
 function literalLink(el){const link=el?.closest('a,[role="link"]');return !!link&&literalToken(link.textContent.trimStart());}
@@ -902,10 +930,10 @@ function shapeFor(text,flat=false,normalized=false){
   shapes.set(plan.key,shape);if(shapes.size>LIMITS.shapes)shapes.delete(shapes.keys().next().value);return shape;
 }
 function templateKey(text,cs,flat=false,normalized=false){return JSON.stringify([flat||normalized?JSON.stringify([flat?'editing':'fragment',text]):wordPlan(text).key,cs.fontFamily,cs.fontWeight,cs.fontStyle,cs.color,fontEpoch]);}
-function templateFor(text,cs,group,flat=false,normalized=false){
-  const key=templateKey(text,cs,flat,normalized);let t=templates.get(key);
+function templateFor(text,cs,group,flat=false,normalized=false,literal=false){
+  const key=literal?JSON.stringify(['literal',text,cs.fontFamily,cs.fontWeight,cs.fontStyle,cs.color,fontEpoch]):templateKey(text,cs,flat,normalized);let t=templates.get(key);
   if(t){templates.delete(key);templates.set(key,t);if(!t.ready)t.waiters.add(group);return t;}
-  t={key,text,flat,normalized,font:cs.fontFamily,weight:cs.fontWeight,fontStyle:cs.fontStyle,color:cs.color,width:null,node:null,ready:false,waiters:new Set([group])};
+  t={key,text,flat,normalized,literal,font:cs.fontFamily,weight:cs.fontWeight,fontStyle:cs.fontStyle,color:cs.color,width:null,node:null,ready:false,waiters:new Set([group])};
   templates.set(key,t);if(templates.size>LIMITS.templates)templates.delete(templates.keys().next().value);return t;
 }
 function cellInk(cell){
@@ -915,7 +943,17 @@ function finishTemplates(list){
   const probes=[];
   for(const t of new Set(list))if(t.width===null){
     if(probes.length>=TEMPLATE_BATCH_SIZE)break;
-    const probe=shapeFor(t.text,t.flat,t.normalized).cloneNode(true);
+    const probe=t.literal?document.createElement('div'):shapeFor(t.text,t.flat,t.normalized).cloneNode(true);
+    if(t.literal){
+      // Preserve the probe's layout metrics after its inline styles are removed.
+      probe.className='word';
+      const word=document.createElement('span');word.className='norin-word';probe.append(word);
+      let offset=0;
+      for(const character of t.text){
+        const span=document.createElement('span');span.textContent=character;
+        span.dataset.norinStart=String(offset);offset+=character.length;span.dataset.norinEnd=String(offset);word.append(span);
+      }
+    }
     probe.style.cssText='position:absolute;visibility:hidden;font-size:100px;left:0;top:0;width:max-content;line-height:1';
     setStyles(probe,{fontFamily:t.font,fontWeight:t.weight,fontStyle:t.fontStyle,color:t.color});
     shadow.append(probe);probes.push({t,probe});
@@ -929,13 +967,15 @@ function finishTemplates(list){
     }
     t.hits=[];
     for(const literal of probe.querySelectorAll('[data-norin-start]')){
-      const bounds=cellInk(literal);t.hits.push({start:Number(literal.dataset.norinStart),end:Number(literal.dataset.norinEnd),left:(bounds.left-origin.left)/100,right:(bounds.right-origin.left)/100,top:(bounds.top-origin.top)/100,bottom:(bounds.bottom-origin.top)/100});
+      const bounds=cellInk(literal),offset=literal.classList.contains('norin-character')?NORIN_GLYPH_OFFSET_EM:0;t.hits.push({start:Number(literal.dataset.norinStart),end:Number(literal.dataset.norinEnd),left:(bounds.left-origin.left)/100,right:(bounds.right-origin.left)/100,top:(bounds.top-origin.top)/100+offset,bottom:(bounds.bottom-origin.top)/100+offset});
     }
     t.inkTop=Number.isFinite(top)?(top-origin.top)/100:0;
     t.inkBottom=Number.isFinite(bottom)?(bottom-origin.top)/100:1;
   }
   for(const {t,probe}of probes){
     t.node=probe.cloneNode(true);t.node.removeAttribute('style');
+    // Apply after measuring so line centering does not cancel the glyph adjustment.
+    t.node.classList.add('norin-positioned');
     setStyles(t.node,{fontFamily:t.font,fontWeight:t.weight,fontStyle:t.fontStyle,color:t.color});
     t.ready=true;
     for(const group of t.waiters)if(group.element.isConnected&&!group.disposed)dirty(group);
@@ -1000,7 +1040,8 @@ function normalizedCaret(raw,offset){
   if(cut>0&&cut<alignment.text.length&&/[\uDC00-\uDFFF]/.test(alignment.text[cut])&&/[\uD800-\uDBFF]/.test(alignment.text[cut-1]))cut--;
   return {text:alignment.text,cut};
 }
-function wordRequest(raw,cs,group,cut=null,prepared=null){
+function wordRequest(raw,cs,group,cut=null,prepared=null,literal=false){
+  if(literal)return {raw,templates:[templateFor(raw,cs,group,false,false,true)]};
   if(cut===null)return {raw,templates:[templateFor(prepared?.text??raw,cs,group,false,!!prepared)]};
   const normalized=prepared||normalizedCaret(raw,cut),left=normalized.text.slice(0,normalized.cut),right=normalized.text.slice(normalized.cut);
   return {raw,cut,normalized,left:left?templateFor(left,cs,group,true):null,right:right?templateFor(right,cs,group,true):null,
@@ -1109,7 +1150,7 @@ function tokenize(record,protectedRanges=[]){
   for(const match of node.data.matchAll(/\S+/gu)){
     if(!/[a-z0-9\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]/i.test(match[0])||literalToken(match[0])||protectedRanges.some(s=>match.index<s.end&&match.index+match[0].length>s.start))continue;
     const range=document.createRange();range.setStart(node,match.index);range.setEnd(node,match.index+match[0].length);
-    record.words.push({text:match[0],range,box:null,glyph:null,template:null});
+    record.words.push({text:match[0],literal:excludedWord(match[0],node.data,match.index),range,box:null,glyph:null,template:null});
   }
 }
 // A native word may occupy several line boxes (hyphens, soft hyphens,
@@ -1145,7 +1186,7 @@ function wordFragments(word,rects){
       fragment={text:word.text.slice(piece.start,piece.end),range,box:null,glyph:null,template:null};
     }
     const start=normalizedCaret(word.text,piece.start).cut,end=normalizedCaret(word.text,piece.end).cut;
-    fragment.sourceWord=word;fragment.normalizedStart=start;
+    fragment.literal=word.literal;fragment.sourceWord=word;fragment.normalizedStart=word.literal?piece.start:start;
     const prepared={text:wordPlan(word.text).text.slice(start,end),start};
     next.set(key,fragment);result.push({word:fragment,rect:piece.rect,prepared,source:word});
   }
@@ -1198,13 +1239,13 @@ function processText(group){
       const rects=[...word.range.getClientRects()].filter(r=>r.width&&r.height);
       if(!rects.some(r=>r.right>clip.left&&r.left<clip.right&&r.bottom>clip.top&&r.top<clip.bottom)){parkWord(word);continue;}
       const pieces=wordFragments(word,rects);
-      const whole=rects.length>1?{word,request:wordRequest(word.text,cs,group,activeCaret&&!activeCaret.control&&activeCaret.node===node&&activeCaret.offset>word.range.startOffset&&activeCaret.offset<word.range.endOffset?activeCaret.offset-word.range.startOffset:null),fits:false}:null;
+      const whole=rects.length>1?{word,request:wordRequest(word.text,cs,group,activeCaret&&!activeCaret.control&&activeCaret.node===node&&activeCaret.offset>word.range.startOffset&&activeCaret.offset<word.range.endOffset?activeCaret.offset-word.range.startOffset:null,null,word.literal),fits:false}:null;
       for(const [index,piece]of pieces.entries()){
         const fragment=piece.word,r=piece.rect;
         if(r.right<=clip.left||r.left>=clip.right||r.bottom<=clip.top||r.top>=clip.bottom){parkWord(fragment);continue;}
         const cut=activeCaret&&!activeCaret.control&&activeCaret.node===node&&activeCaret.offset>fragment.range.startOffset&&activeCaret.offset<fragment.range.endOffset?activeCaret.offset-fragment.range.startOffset:null;
         const prepared=piece.prepared?{text:piece.prepared.text,cut:cut===null?null:normalizedCaret(word.text,activeCaret.offset-word.range.startOffset).cut-piece.prepared.start}:null;
-        const request=wordRequest(fragment.text,cs,group,cut,prepared);
+        const request=wordRequest(fragment.text,cs,group,cut,prepared,fragment.literal);
         placements.push({word:fragment,whole,wholeCandidate:index===0?whole:null,request,t:request.templates[0],cs,el,rect:r,size:norinFontSize(cs),scope:group.element});owners.add(el);
       }
     }
@@ -1236,7 +1277,7 @@ function processText(group){
     let previous=null,translated=false;
     for(const p of line){
       // Keep leading numbers and symbols native, including their exact spacing.
-      p.nativePrefix=p.kind!=='emoji'&&!translated&&!/[a-z]/i.test(p.word.text);
+      p.nativePrefix=p.kind!=='emoji'&&!p.word.literal&&!translated&&!/[a-z]/i.test(p.word.text);
       if(p.kind!=='emoji'&&!p.nativePrefix)translated=true;
       const node=p.word?.range.startContainer;
       const barrier=previous&&(p.kind==='emoji'||previous.kind==='emoji'?emojiGapHasText(previous,p):(previous.word.range.startContainer===node?node.data.slice(previous.word.range.endOffset,p.word.range.startOffset).trim():emojiGapHasText(previous,p)));
@@ -1269,10 +1310,11 @@ function processText(group){
         leftLimit=Math.max(leftLimit,boundary+gap);run=[];runRight=Infinity;
       }
     }
-    const glyphs=line.filter(p=>p.kind!=='emoji');
-    const inkTop=Math.min(...glyphs.map(p=>p.t.inkTop*p.size)),inkBottom=Math.max(...glyphs.map(p=>p.t.inkBottom*p.size));
+    // Literal fonts have different vertical metrics from the Norin font.
+    const glyphs=line.filter(p=>p.kind!=='emoji'&&!p.t.literal);
+    const inkTop=glyphs.length?Math.min(...glyphs.map(p=>p.t.inkTop*p.size)):0,inkBottom=glyphs.length?Math.max(...glyphs.map(p=>p.t.inkBottom*p.size)):0;
     const center=(Math.min(...line.map(p=>p.rect.top))+Math.max(...line.map(p=>p.rect.bottom)))/2;
-    for(const p of line)p.visualY=center-(inkTop+inkBottom)/2;
+    for(const p of line)p.visualY=center-(p.t?.literal?(p.t.inkTop+p.t.inkBottom)*p.size:inkTop+inkBottom)/2;
   }
   // Create local anchors after reading source geometry; measure each anchor only once.
   const origins=new Map(),used=new Set();
@@ -1307,7 +1349,7 @@ function mergeRanges(ranges){
 }
 function controlParts(value){
   const parts=[];let offset=0;
-  const normal=text=>{for(const part of text.split(/(\s+)/u))if(part)parts.push({text:part,plain:/^\s+$/.test(part)||literalToken(part)});};
+  const normal=text=>{let start=offset;for(const part of text.split(/(\s+)/u))if(part){parts.push({text:part,plain:/^\s+$/.test(part)||literalToken(part)||excludedWord(part,value,start)});start+=part.length;}};
   for(const span of codeSpans(value)){normal(value.slice(offset,span.start));parts.push({text:value.slice(span.start,span.end),plain:true});offset=span.end;}
   normal(value.slice(offset));return parts;
 }
@@ -1354,7 +1396,7 @@ function processControl(group){
         fragment.append(span);view.items.push({...part,node:span});
       }else{
         const t=wordTemplates[i++],span=document.createElement('span');span.style.cssText=`display:inline-block;position:relative;width:${t.width}em;height:1em;vertical-align:baseline`;
-        const word=t.node.cloneNode(true);setStyles(word,{position:'absolute',left:'0px',top:visualTop,fontSize:'inherit'});span.append(word);
+        const word=t.node.cloneNode(true);setStyles(word,{position:'absolute',left:'0px',top:t.literal?`${(1-t.inkTop-t.inkBottom)*50}%`:visualTop,fontSize:'inherit'});span.append(word);
         if(t.editing)anchor(span,false,t.caretX);
         fragment.append(span);view.items.push({...part,t,node:span,glyph:word});
       }
@@ -1514,7 +1556,7 @@ function recoverViewport(){
 }
 function distanceToRect(x,y,rect){const dx=Math.max(rect.left-x,0,x-rect.right),dy=Math.max(rect.top-y,0,y-rect.bottom);return dx*dx+dy*dy*4;}
 function glyphPointOffset(raw,t,glyph,x,y){
-  const rect=glyph.getBoundingClientRect(),unit=rect.width/Math.max(.001,t.width),alignment=sourceAlignment(raw);
+  const rect=glyph.getBoundingClientRect(),unit=rect.width/Math.max(.001,t.width),alignment=t.literal?{spans:Array.from({length:raw.length},(_,i)=>({start:i,end:i+1}))}:sourceAlignment(raw);
   const localX=(x-rect.left)/unit,localY=(y-rect.top)/unit;
   let best=null,score=Infinity;
   for(const hit of t.hits||[]){const distance=distanceToRect(localX,localY,hit);if(distance<score){score=distance;best=hit;}}
