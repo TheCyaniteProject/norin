@@ -22,7 +22,7 @@ OS2Version: 0
 OS2_WeightWidthSlopeOnly: 0
 OS2_UseTypoMetrics: 1
 CreationTime: 1794932251
-ModificationTime: 1795378544
+ModificationTime: 1795382277
 OS2TypoAscent: 0
 OS2TypoAOffset: 1
 OS2TypoDescent: 0
@@ -36,7 +36,6 @@ HheadAscent: 0
 HheadAOffset: 1
 HheadDescent: 0
 HheadDOffset: 1
-OS2Vendor: 'PfEd'
 Lookup: 260 0 0 "VowelAttachment" { "VowelAnchors"  } ['mark' ('DFLT' <'dflt' > ) ]
 MarkAttachClasses: 1
 DEI: 91125
@@ -129,7 +128,7 @@ StartChar: uniE002
 Encoding: 57346 57346 2
 Width: 0
 Flags: HW
-AnchorPoint: "vowel" -59 293 basechar 0
+AnchorPoint: "vowel" -19 293 basechar 0
 LayerCount: 2
 Fore
 SplineSet
@@ -178,6 +177,7 @@ SplineSet
  45 250 56 279 56 299 c 0
  56 341 14 375 3 382 c 0
 EndSplineSet
+Validated: 1
 EndChar
 
 StartChar: uniE004
@@ -229,6 +229,7 @@ SplineSet
  375 426 l 2
  376 427 384 442 400 442 c 0
 EndSplineSet
+Validated: 1
 EndChar
 
 StartChar: uniE008
@@ -279,6 +280,7 @@ SplineSet
  372 378 359 391 346 391 c 0
  333 391 320 378 320 361 c 0
 EndSplineSet
+Validated: 1
 EndChar
 
 StartChar: uniE00C
@@ -339,6 +341,7 @@ SplineSet
  226 410 264 420 301 420 c 0
  374 420 381 378 381 361 c 0
 EndSplineSet
+Validated: 1
 EndChar
 
 StartChar: uniE010
@@ -397,6 +400,7 @@ SplineSet
  291 307 256 330 228 372 c 0
  224 377 222 382 222 387 c 0
 EndSplineSet
+Validated: 1
 EndChar
 
 StartChar: uniE014
@@ -1570,7 +1574,7 @@ StartChar: uniE019
 Encoding: 57369 57369 47
 Width: 0
 Flags: HW
-AnchorPoint: "vowel" -59 293 basechar 0
+AnchorPoint: "vowel" 21 293 basechar 0
 LayerCount: 2
 Fore
 SplineSet
@@ -1717,7 +1721,7 @@ StartChar: uniE01F
 Encoding: 57375 57375 51
 Width: 0
 Flags: HW
-AnchorPoint: "vowel" -6 293 basechar 0
+AnchorPoint: "vowel" 14 293 basechar 0
 LayerCount: 2
 Fore
 SplineSet
@@ -1910,7 +1914,7 @@ StartChar: uniE028
 Encoding: 57384 57384 57
 Width: 0
 Flags: HW
-AnchorPoint: "vowel" -6 293 basechar 0
+AnchorPoint: "vowel" 4 293 basechar 0
 LayerCount: 2
 Fore
 SplineSet
@@ -2041,7 +2045,7 @@ StartChar: uniE02E
 Encoding: 57390 57390 61
 Width: 0
 Flags: HW
-AnchorPoint: "vowel" -6 293 basechar 0
+AnchorPoint: "vowel" 14 283 basechar 0
 LayerCount: 2
 Fore
 SplineSet
@@ -2096,7 +2100,7 @@ StartChar: uniE031
 Encoding: 57393 57393 63
 Width: 0
 Flags: HW
-AnchorPoint: "vowel" -6 293 basechar 0
+AnchorPoint: "vowel" 4 293 basechar 0
 LayerCount: 2
 Fore
 SplineSet
@@ -2380,8 +2384,8 @@ EndChar
 StartChar: uniE040
 Encoding: 57408 57408 73
 Width: 0
-Flags: HW
-AnchorPoint: "vowel" -6 293 basechar 0
+Flags: HWO
+AnchorPoint: "vowel" 24 293 basechar 0
 LayerCount: 2
 Fore
 SplineSet
@@ -2399,7 +2403,6 @@ SplineSet
  -271 180 l 2
  -277 184 -280 191 -280 197 c 0
 EndSplineSet
-Validated: 1
 EndChar
 
 StartChar: uniE042
@@ -3052,7 +3055,7 @@ StartChar: uniE061
 Encoding: 57441 57441 95
 Width: 0
 Flags: HW
-AnchorPoint: "vowel" -6 293 basechar 0
+AnchorPoint: "vowel" 24 293 basechar 0
 LayerCount: 2
 Fore
 SplineSet
@@ -3107,7 +3110,7 @@ StartChar: uniE006
 Encoding: 57350 57350 97
 Width: 0
 Flags: HW
-AnchorPoint: "vowel" -6 293 basechar 0
+AnchorPoint: "vowel" 24 293 basechar 0
 LayerCount: 2
 Fore
 SplineSet

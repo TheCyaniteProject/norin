@@ -3,6 +3,7 @@
 // @namespace    https://github.com/TheCyaniteProject/norin
 // @match        https://*/*
 // @match        http://*/*
+// @match        file:///*
 // @run-at       document-idle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_registerMenuCommand
@@ -72,6 +73,15 @@ const CLASS_EXCLUSIONS = [
   {match: /codeBlock|code-block/, subtree: true}
 ];
 
+// Default gap after an accent-ending block, only when followed by a Norin glyph.
+const ACCENT_BLOCK_GAP_EM=.1;
+// Overrides match the immediate following character (case-sensitive); gaps are in em.
+// Accent entries use vowel letters (a/e/i/o/u) and add to the character/default gap.
+// Literal characters receive no default gap. Example: {character: ':', gap: .1}
+const ACCENT_BLOCK_GAP_OVERRIDES = [
+  // {character: ':', gap: .1},
+  // {accent: 'a', gap: .1},
+];
 
 let phoneticMap;
 let phoneticKeys = [];
@@ -591,21 +601,29 @@ function renderInto(target, rawText, opts = {}) {
     }
     const entry=fontCodes[key],previous=tokens.at(-1),upper=text.slice(i,i+key.length)===key.toUpperCase();
     if(entry.mark&&previous?.key&&!previous.accent&&!(opts.readerMode&&upper)){
-      previous.accent={code:entry.code+3,start:i,end:i+key.length};
+      previous.accent={key,code:entry.code+3,start:i,end:i+key.length};
     }else tokens.push({key,code:entry.code,start:i,end:i+key.length});
     i+=key.length;
   }
-  function emit(token,variant=0){
+  function emit(token,variant=0,endBlock=true,nextToken=null){
     const span=document.createElement('span');
     span.className=token.key?'norin-character':'literal-source';
     span.dataset.norinStart=String(token.start);span.dataset.norinEnd=String(token.end);
     span.textContent=token.key?String.fromCodePoint(token.code+variant):token.text;word.append(span);
-    if(token.accent){const accent=document.createElement('span');accent.className='norin-character';accent.dataset.norinStart=String(token.accent.start);accent.dataset.norinEnd=String(token.accent.end);accent.textContent=String.fromCodePoint(token.accent.code);word.append(accent);}
+    if(token.accent){const accent=document.createElement('span');accent.className=endBlock?'norin-character norin-accent-block-end':'norin-character';accent.dataset.norinStart=String(token.accent.start);accent.dataset.norinEnd=String(token.accent.end);accent.textContent=String.fromCodePoint(token.accent.code);
+      if(endBlock){
+        const following=Array.from(text.slice(token.accent.end))[0];
+        const override=ACCENT_BLOCK_GAP_OVERRIDES.find(entry=>typeof entry.character==='string'&&entry.character===following);
+        const characterGap=override?override.gap:nextToken?.key?ACCENT_BLOCK_GAP_EM:0;
+        const accentGap=ACCENT_BLOCK_GAP_OVERRIDES.find(entry=>entry.accent===token.accent.key)?.gap??0;
+        accent.style.marginRight=`${characterGap+accentGap}em`;
+      }
+      word.append(accent);}
   }
   for(let i=0;i<tokens.length;){
     if(!opts.unstacked&&!(opts.readerMode&&text===text.toUpperCase()&&/[A-Z]/.test(text))&&tokens.slice(i,i+3).length===3&&tokens.slice(i,i+3).every(t=>t.key)){
-      emit(tokens[i]);emit(tokens[i+1],1);emit(tokens[i+2],2);i+=3;
-    }else emit(tokens[i++]);
+      emit(tokens[i],0,false);emit(tokens[i+1],1,false);emit(tokens[i+2],2,true,tokens[i+3]);i+=3;
+    }else{emit(tokens[i],0,true,tokens[i+1]);i++;}
   }
 }
 
@@ -762,8 +780,10 @@ function emojiGapHasText(previous,current){
 }
 function addNode(node,resetRanges=false,recover=false){
   if(!node.parentElement||excludedSubtree(node.parentElement)||node.parentElement.closest('input,textarea'))return;
+  // Emoji carriers are already positioned as elements; do not overlay their text too.
+  for(let parent=node.parentElement;parent;parent=parent.parentElement)if(emojiRecords.has(parent))return;
   let record=textNodes.get(node);
-  if(!record&&!/[a-z0-9\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]/i.test(node.data))return;
+  if(!record&&!/\S/u.test(node.data))return;
   const group=recordFor(scopeFor(node.parentElement));
   if(!record){record={node,text:null,words:[],group};textNodes.set(node,record);group.nodes.add(record);}
   else if(record.group!==group){record.group.nodes.delete(record);dirty(record.group);record.group=group;group.nodes.add(record);}
@@ -795,7 +815,7 @@ function track(root,resetRanges=false,recover=false){
   const walker=document.createTreeWalker(root,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT,{
     acceptNode(n){
       if(n.nodeType===Node.ELEMENT_NODE){if(n.matches(skip)||excludedClass(n,true))return NodeFilter.FILTER_REJECT;if(n.matches('input,textarea')){addControl(n);return NodeFilter.FILTER_REJECT;}addEmoji(n,recover);return NodeFilter.FILTER_SKIP;}
-      return /[a-z0-9\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]/i.test(n.data)||textNodes.has(n)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;
+      return /\S/u.test(n.data)||textNodes.has(n)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;
     }
   });
   let node;while((node=walker.nextNode()))addNode(node,resetRanges,recover);
@@ -918,7 +938,8 @@ function wordPlan(text){
       }
       layout.push(['word',part===part.toUpperCase()&&/[A-Z]/.test(part),tokens]);
     }
-    plan={key:JSON.stringify(layout),text:converted,normalized:true};
+    // Character-specific spacing must not share shapes across different source casing.
+    plan={key:JSON.stringify([layout,ACCENT_BLOCK_GAP_OVERRIDES.length?converted:null]),text:converted,normalized:true};
   }
   spellings.set(text,plan);if(spellings.size>LIMITS.spellings)spellings.delete(spellings.keys().next().value);
   return plan;
@@ -1144,13 +1165,14 @@ function syncNativeCarets(next){
 }
 function tokenize(record,protectedRanges=[]){
   const node=record.node;
-  const codeKey=protectedRanges.map(s=>`${s.start}:${s.end}`).join(',');
+  const phonetic=!!node.parentElement.closest('[data-norin-phonetic]');
+  const codeKey=`${phonetic}:`+protectedRanges.map(s=>`${s.start}:${s.end}`).join(',');
   if(record.text===node.data&&record.codeKey===codeKey)return;record.codeKey=codeKey;
   releaseWords(record,true);record.text=node.data;record.words=[];
   for(const match of node.data.matchAll(/\S+/gu)){
-    if(!/[a-z0-9\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]/i.test(match[0])||literalToken(match[0])||protectedRanges.some(s=>match.index<s.end&&match.index+match[0].length>s.start))continue;
+    if(literalToken(match[0])||protectedRanges.some(s=>match.index<s.end&&match.index+match[0].length>s.start))continue;
     const range=document.createRange();range.setStart(node,match.index);range.setEnd(node,match.index+match[0].length);
-    record.words.push({text:match[0],literal:excludedWord(match[0],node.data,match.index),range,box:null,glyph:null,template:null});
+    record.words.push({text:match[0],phonetic,literal:excludedWord(match[0],node.data,match.index)||!/[a-z]/i.test(match[0]),range,box:null,glyph:null,template:null});
   }
 }
 // A native word may occupy several line boxes (hyphens, soft hyphens,
@@ -1185,9 +1207,9 @@ function wordFragments(word,rects){
       const range=document.createRange();range.setStart(node,base+piece.start);range.setEnd(node,base+piece.end);
       fragment={text:word.text.slice(piece.start,piece.end),range,box:null,glyph:null,template:null};
     }
-    const start=normalizedCaret(word.text,piece.start).cut,end=normalizedCaret(word.text,piece.end).cut;
-    fragment.literal=word.literal;fragment.sourceWord=word;fragment.normalizedStart=word.literal?piece.start:start;
-    const prepared={text:wordPlan(word.text).text.slice(start,end),start};
+    const start=word.phonetic?piece.start:normalizedCaret(word.text,piece.start).cut,end=word.phonetic?piece.end:normalizedCaret(word.text,piece.end).cut;
+    fragment.phonetic=word.phonetic;fragment.literal=word.literal;fragment.sourceWord=word;fragment.normalizedStart=word.literal?piece.start:start;
+    const prepared={text:(word.phonetic?word.text:wordPlan(word.text).text).slice(start,end),start};
     next.set(key,fragment);result.push({word:fragment,rect:piece.rect,prepared,source:word});
   }
   for(const [key,fragment]of previous)if(!next.has(key))parkWord(fragment,true);
@@ -1239,12 +1261,12 @@ function processText(group){
       const rects=[...word.range.getClientRects()].filter(r=>r.width&&r.height);
       if(!rects.some(r=>r.right>clip.left&&r.left<clip.right&&r.bottom>clip.top&&r.top<clip.bottom)){parkWord(word);continue;}
       const pieces=wordFragments(word,rects);
-      const whole=rects.length>1?{word,request:wordRequest(word.text,cs,group,activeCaret&&!activeCaret.control&&activeCaret.node===node&&activeCaret.offset>word.range.startOffset&&activeCaret.offset<word.range.endOffset?activeCaret.offset-word.range.startOffset:null,null,word.literal),fits:false}:null;
+      const whole=rects.length>1?{word,request:wordRequest(word.text,cs,group,activeCaret&&!activeCaret.control&&activeCaret.node===node&&activeCaret.offset>word.range.startOffset&&activeCaret.offset<word.range.endOffset?activeCaret.offset-word.range.startOffset:null,word.phonetic?{text:word.text,cut:activeCaret?.offset-word.range.startOffset}:null,word.literal),fits:false}:null;
       for(const [index,piece]of pieces.entries()){
         const fragment=piece.word,r=piece.rect;
         if(r.right<=clip.left||r.left>=clip.right||r.bottom<=clip.top||r.top>=clip.bottom){parkWord(fragment);continue;}
         const cut=activeCaret&&!activeCaret.control&&activeCaret.node===node&&activeCaret.offset>fragment.range.startOffset&&activeCaret.offset<fragment.range.endOffset?activeCaret.offset-fragment.range.startOffset:null;
-        const prepared=piece.prepared?{text:piece.prepared.text,cut:cut===null?null:normalizedCaret(word.text,activeCaret.offset-word.range.startOffset).cut-piece.prepared.start}:null;
+        const prepared=fragment.phonetic?{text:fragment.text,cut}:piece.prepared?{text:piece.prepared.text,cut:cut===null?null:normalizedCaret(word.text,activeCaret.offset-word.range.startOffset).cut-piece.prepared.start}:null;
         const request=wordRequest(fragment.text,cs,group,cut,prepared,fragment.literal);
         placements.push({word:fragment,whole,wholeCandidate:index===0?whole:null,request,t:request.templates[0],cs,el,rect:r,size:norinFontSize(cs),scope:group.element});owners.add(el);
       }
@@ -1451,10 +1473,17 @@ let selectionSignature='';
 function updateSelection(force=false){
   const selection=window.getSelection(),selected=[];
   if(selection&&!selection.isCollapsed)for(let i=0;i<selection.rangeCount;i++)selected.push(selection.getRangeAt(i));
+  // A block's text and emojis share one reflowed layout. Reveal them together
+  // even when the selection only touches text inside a nested inline element.
+  const hiddenGroups=new Set();
+  for(const group of activeRecords)if(group.kind==='text'&&(
+    !!composingEditor&&(composingEditor===group.element||composingEditor.contains(group.element)||group.element.contains(composingEditor))||
+    selected.some(range=>range.intersectsNode(group.element))
+  ))hiddenGroups.add(group);
   const hidden=new Set();
   for(const mount of mounts.values()){
     const owner=mount.owner;
-    const intersects=!!composingEditor&&(composingEditor===owner||composingEditor.contains(owner))||selected.some(r=>[...owner.childNodes].some(n=>n.nodeType===Node.TEXT_NODE&&n.length&&r.intersectsNode(n)));
+    const intersects=hiddenGroups.has(mount.group)||!!composingEditor&&(composingEditor===owner||composingEditor.contains(owner))||selected.some(r=>[...owner.childNodes].some(n=>n.nodeType===Node.TEXT_NODE&&n.length&&r.intersectsNode(n)));
     // Keep the anchor measurable during selection and English mode. display:none
     // zeroes its rect and makes concurrent redraws save viewport coordinates.
     if(intersects)hidden.add(owner);setStyles(mount.host,{visibility:enabled&&!intersects?'inherit':'hidden'});
@@ -1468,7 +1497,7 @@ function updateSelection(force=false){
   const visibleEmojis=new Set(movedEmojis);
   for(const group of activeRecords)if(group.kind==='text')for(const emoji of group.emojis)visibleEmojis.add(emoji);
   for(const emoji of visibleEmojis){
-    const selectedHere=hidden.has(emoji.element.parentElement)||hidden.has(emoji.group.element)||selected.some(range=>range.intersectsNode(emoji.element));
+    const selectedHere=hiddenGroups.has(emoji.group)||hidden.has(emoji.element.parentElement)||hidden.has(emoji.group.element)||selected.some(range=>range.intersectsNode(emoji.element));
     if(enabled&&emoji.group.near&&!selectedHere)showEmoji(emoji);else restoreEmoji(emoji);
   }
   const nextNative=new Set(),caret=readCaret();
@@ -1729,7 +1758,7 @@ async function start(){
       if(removedRoots.size)schedule();
     }
   });
-  observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','style','hidden','placeholder','value','href','role','type','name','id','autocomplete','data-slate-type','src','alt','aria-label']});
+  observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','style','hidden','placeholder','value','href','role','type','name','id','autocomplete','data-slate-type','data-norin-phonetic','src','alt','aria-label']});
   new MutationObserver(()=>{for(const group of activeRecords)dirty(group);}).observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme','data-color-mode']});
   for(const event of ['input','change','focusin','focusout'])document.addEventListener(event,onInput,true);
   document.addEventListener('scroll',onScroll,{capture:true,passive:true});

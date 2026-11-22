@@ -5,61 +5,170 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Norin font test</title>
   <style>
-    @font-face {
-      font-family: "Norin Test";
-      src: url("../norin-font/Norin.tff") format("truetype"),
-           url("../norin-font/Norin.ttf") format("truetype");
-      font-weight: 400;
-      font-style: normal;
-      font-display: swap;
-      unicode-range: U+E000-E061;
-    }
-    body { margin: 24px; color: #222; background: #fff; font-family: system-ui, sans-serif; }
-    h1 { font-size: 22px; }
-    p { color: #555; font-size: 14px; }
-    .table-wrap { overflow-x: auto; }
-    table { border-collapse: collapse; }
-    th, td { padding: 16px; border: 1px solid #ddd; text-align: left; }
-    th { font-size: 13px; font-weight: 500; white-space: nowrap; background: #f5f5f5; }
-    td { white-space: nowrap; line-height: 1.6; }
-    .norin { font-family: "Norin Test", sans-serif; }
-    #all-characters { font-size: 48px; font-weight: 400; line-height: 1.6; white-space: nowrap; letter-spacing: 0; overflow-x: auto; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; color: #222; background: #fafafa; font-family: system-ui, sans-serif; }
+    main { max-width: 1400px; margin: auto; }
+    h1 { margin: 0 0 8px; font-size: 26px; }
+    h2 { margin: 0; font-size: 19px; }
+    p { color: #666; font-size: 14px; }
+    section { margin-top: 24px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #fff; }
+    .section-heading, .controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .section-heading { justify-content: space-between; margin-bottom: 16px; }
+    button, select, textarea { font: inherit; color: inherit; border: 1px solid #bbb; border-radius: 5px; background: #fff; padding: 8px 12px; }
+    button { cursor: pointer; }
+    button:hover { background: #eee; }
+    button:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 2px solid #6755c5; outline-offset: 3px; }
+    .scroll { overflow-x: auto; padding-bottom: 12px; }
+    .english { color: #777; font-size: 14px; white-space: nowrap; }
+    .preview { width: max-content; min-width: 100%; margin-top: 12px; font-size: 32px; line-height: 1.8; white-space: nowrap; }
+    .block-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+    .block-card { min-width: 0; padding: 12px; border: 1px solid #ddd; border-radius: 5px; overflow-x: auto; }
+    .block-label { color: #666; font-size: 13px; }
+    .block-card .preview { min-width: 0; font-size: 40px; }
+    .mixed-case + .mixed-case { margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee; }
+    .mixed-case .preview { font-size: 24px; }
+    .field { display: grid; gap: 8px; margin: 16px 0; }
+    textarea { width: 100%; min-height: 90px; resize: vertical; }
+    .size-row { padding: 16px 0; border-top: 1px solid #eee; width: max-content; min-width: 100%; }
+    .size-label { color: #666; font-size: 13px; }
+    .size-row .preview { min-width: 0; }
+    @media (max-width: 600px) { body { padding: 12px; } section { padding: 14px; } }
   </style>
 </head>
 <body>
-  <h1>Norin font test</h1>
-  <p>Only U+E000–U+E061 use Norin. The regular font is used with browser-synthesized heavier weights.</p>
-  <h2>U+E000–U+E061</h2>
-  <div id="all-characters" class="norin"></div>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Size</th><th>400</th><th>500</th><th>600</th><th>700</th><th>900</th></tr></thead>
-      <tbody id="samples"></tbody>
-    </table>
-  </div>
+  <main>
+    <header class="NORIN_EXCLUSION">
+      <h1>Norin font test</h1>
+      <p>Enable Norin Everywhere to render the previews. Gray reference text and controls stay English.</p>
+    </header>
+
+    <section aria-labelledby="characters-heading">
+      <div class="section-heading NORIN_EXCLUSION"><h2 id="characters-heading">All characters</h2></div>
+      <p class="NORIN_EXCLUSION">Vowels repeat six times; other glyphs repeat three times. These samples use phonetic input without spelling replacements.</p>
+      <div class="scroll" tabindex="0" aria-label="All characters preview">
+        <div id="characters-english" class="english NORIN_EXCLUSION"></div>
+        <div id="all-characters" class="preview" data-norin-phonetic></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="random-heading">
+      <div class="section-heading NORIN_EXCLUSION">
+        <h2 id="random-heading">Random letters</h2>
+        <button id="randomize" type="button">Randomize</button>
+      </div>
+      <div class="scroll" tabindex="0" aria-label="Random letters preview">
+        <div id="random-english" class="english NORIN_EXCLUSION"></div>
+        <div id="random-preview" class="preview" data-norin-phonetic></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="blocks-heading">
+      <div class="section-heading NORIN_EXCLUSION"><h2 id="blocks-heading">Character blocks</h2></div>
+      <div id="blocks" class="block-grid"></div>
+    </section>
+
+    <section aria-labelledby="mixed-heading">
+      <div class="section-heading NORIN_EXCLUSION"><h2 id="mixed-heading">Norin, emotes, emoji & Japanese</h2></div>
+      <div id="mixed-samples" class="scroll" tabindex="0" aria-label="Mixed text previews"></div>
+    </section>
+
+    <section aria-labelledby="sizes-heading">
+      <div class="section-heading NORIN_EXCLUSION">
+        <h2 id="sizes-heading">Sizes & font weight</h2>
+        <label class="controls" for="font-weight">Font weight
+          <select id="font-weight">
+            <option value="400">400 · Regular</option>
+            <option value="500">500 · Medium</option>
+            <option value="600">600 · Semibold</option>
+            <option value="700">700 · Bold</option>
+            <option value="900">900 · Black</option>
+          </select>
+        </label>
+      </div>
+      <label class="field NORIN_EXCLUSION" for="preview-text">Preview text
+        <textarea id="preview-text" class="NORIN_EXCLUSION" spellcheck="false">Bunny spotted 👀 :D xD c: Have a nice day! わくわく</textarea>
+      </label>
+      <div id="sizes" class="scroll" tabindex="0" aria-label="Size and weight previews"></div>
+    </section>
+  </main>
   <script>
-    document.getElementById('all-characters').textContent = Array.from(
-      { length: 0xE061 - 0xE000 + 1 }, (_, index) => String.fromCodePoint(0xE000 + index)
-    ).join('');
-    const samples = document.getElementById('samples');
-    for (const size of [12, 16, 24, 32, 48, 72, 96]) {
-      const row = document.createElement('tr');
-      const label = document.createElement('th');
-      label.scope = 'row';
-      label.textContent = `${size}px`;
-      row.append(label);
-      for (const weight of [400, 500, 600, 700, 900]) {
-        const cell = document.createElement('td');
-        cell.style.fontSize = `${size}px`;
-        cell.style.fontWeight = weight;
-        const glyphs = document.createElement('span');
-        glyphs.className = 'norin';
-        glyphs.textContent = '\uE000\uE003\uE001\uE003\uE002\uE003'.repeat(2) + '\uE000\uE000 \uE000\uE003\uE000';
-        cell.append('Test ', glyphs, ' わくわく');
-        row.append(cell);
-      }
-      samples.append(row);
+    const vowels = ['a', 'e', 'i', 'o', 'u'];
+    const glyphs = [...vowels, 'air', 'au', 'ch', 'ee', 'ng', 'oo', 'sh', 'th',
+      'b', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'r', 's', 't', 'v', 'w', 'y', 'z'];
+    const repetitions = glyph => glyph.repeat(vowels.includes(glyph) ? 6 : 3);
+    const allCharacters = glyphs.map(repetitions).join(' ');
+    document.getElementById('characters-english').textContent = allCharacters;
+    document.getElementById('all-characters').textContent = allCharacters;
+
+    function randomize() {
+      const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+      const values = crypto.getRandomValues(new Uint32Array(72));
+      const text = Array.from(values, value => alphabet[value % alphabet.length]).join('');
+      document.getElementById('random-english').textContent = text;
+      document.getElementById('random-preview').textContent = text;
     }
+    document.getElementById('randomize').addEventListener('click', randomize);
+    randomize();
+
+    for (const glyph of glyphs) {
+      const card = document.createElement('div');
+      card.className = 'block-card';
+      const label = document.createElement('div');
+      label.className = 'block-label NORIN_EXCLUSION';
+      label.textContent = `${glyph} · ${repetitions(glyph)}`;
+      const preview = document.createElement('div');
+      preview.className = 'preview';
+      preview.setAttribute('data-norin-phonetic', '');
+      preview.textContent = repetitions(glyph);
+      card.append(label, preview);
+      document.getElementById('blocks').append(card);
+    }
+
+    for (const text of [
+      'Bunny spotted 👀 :D xD c: Have a nice day! わくわく',
+      'Hello :D 👀 こんにちは world xD 🌸 日本語 c: goodbye!',
+      'Hello👀world こんにちはhello わくわく🌸 :D',
+      '👀 Bunny :D spotted 🌸 わくわく',
+    ]) {
+      const sample = document.createElement('div');
+      sample.className = 'mixed-case';
+      const english = document.createElement('div');
+      english.className = 'english NORIN_EXCLUSION';
+      english.textContent = text;
+      const preview = document.createElement('div');
+      preview.className = 'preview';
+      preview.textContent = text;
+      sample.append(english, preview);
+      document.getElementById('mixed-samples').append(sample);
+    }
+
+    const sizeSamples = [12, 16, 18, 24, 32, 48, 72, 96].map(size => {
+      const row = document.createElement('div');
+      row.className = 'size-row';
+      const label = document.createElement('div');
+      label.className = 'size-label NORIN_EXCLUSION';
+      const english = document.createElement('div');
+      english.className = 'english NORIN_EXCLUSION';
+      const preview = document.createElement('div');
+      preview.className = 'preview';
+      preview.style.fontSize = `${size}px`;
+      row.append(label, english, preview);
+      document.getElementById('sizes').append(row);
+      return {size, label, english, preview};
+    });
+    function updateSizes() {
+      const text = document.getElementById('preview-text').value;
+      const weight = document.getElementById('font-weight').value;
+      for (const sample of sizeSamples) {
+        sample.label.textContent = `${sample.size}px · weight ${weight}`;
+        sample.english.textContent = text;
+        sample.preview.textContent = text;
+        sample.preview.style.fontWeight = weight;
+      }
+    }
+    document.getElementById('preview-text').addEventListener('input', updateSizes);
+    document.getElementById('font-weight').addEventListener('change', updateSizes);
+    updateSizes();
   </script>
 </body>
 </html>
