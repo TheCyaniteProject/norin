@@ -81,6 +81,10 @@ const ACCENT_BLOCK_GAP_EM=.1;
 const ACCENT_BLOCK_GAP_OVERRIDES = [
   // {character: ':', gap: .1},
   // {accent: 'a', gap: .1},
+    {character: 'n', gap: .13},
+    {accent: 'o', gap: .13},
+    {accent: 'u', gap: .08},
+    {accent: 'e', gap: .03},
 ];
 
 let phoneticMap;
@@ -1165,14 +1169,13 @@ function syncNativeCarets(next){
 }
 function tokenize(record,protectedRanges=[]){
   const node=record.node;
-  const phonetic=!!node.parentElement.closest('[data-norin-phonetic]');
-  const codeKey=`${phonetic}:`+protectedRanges.map(s=>`${s.start}:${s.end}`).join(',');
+  const codeKey=protectedRanges.map(s=>`${s.start}:${s.end}`).join(',');
   if(record.text===node.data&&record.codeKey===codeKey)return;record.codeKey=codeKey;
   releaseWords(record,true);record.text=node.data;record.words=[];
   for(const match of node.data.matchAll(/\S+/gu)){
     if(literalToken(match[0])||protectedRanges.some(s=>match.index<s.end&&match.index+match[0].length>s.start))continue;
     const range=document.createRange();range.setStart(node,match.index);range.setEnd(node,match.index+match[0].length);
-    record.words.push({text:match[0],phonetic,literal:excludedWord(match[0],node.data,match.index)||!/[a-z]/i.test(match[0]),range,box:null,glyph:null,template:null});
+    record.words.push({text:match[0],literal:excludedWord(match[0],node.data,match.index)||!/[a-z]/i.test(match[0]),range,box:null,glyph:null,template:null});
   }
 }
 // A native word may occupy several line boxes (hyphens, soft hyphens,
@@ -1207,9 +1210,9 @@ function wordFragments(word,rects){
       const range=document.createRange();range.setStart(node,base+piece.start);range.setEnd(node,base+piece.end);
       fragment={text:word.text.slice(piece.start,piece.end),range,box:null,glyph:null,template:null};
     }
-    const start=word.phonetic?piece.start:normalizedCaret(word.text,piece.start).cut,end=word.phonetic?piece.end:normalizedCaret(word.text,piece.end).cut;
-    fragment.phonetic=word.phonetic;fragment.literal=word.literal;fragment.sourceWord=word;fragment.normalizedStart=word.literal?piece.start:start;
-    const prepared={text:(word.phonetic?word.text:wordPlan(word.text).text).slice(start,end),start};
+    const start=normalizedCaret(word.text,piece.start).cut,end=normalizedCaret(word.text,piece.end).cut;
+    fragment.literal=word.literal;fragment.sourceWord=word;fragment.normalizedStart=word.literal?piece.start:start;
+    const prepared={text:wordPlan(word.text).text.slice(start,end),start};
     next.set(key,fragment);result.push({word:fragment,rect:piece.rect,prepared,source:word});
   }
   for(const [key,fragment]of previous)if(!next.has(key))parkWord(fragment,true);
@@ -1261,12 +1264,12 @@ function processText(group){
       const rects=[...word.range.getClientRects()].filter(r=>r.width&&r.height);
       if(!rects.some(r=>r.right>clip.left&&r.left<clip.right&&r.bottom>clip.top&&r.top<clip.bottom)){parkWord(word);continue;}
       const pieces=wordFragments(word,rects);
-      const whole=rects.length>1?{word,request:wordRequest(word.text,cs,group,activeCaret&&!activeCaret.control&&activeCaret.node===node&&activeCaret.offset>word.range.startOffset&&activeCaret.offset<word.range.endOffset?activeCaret.offset-word.range.startOffset:null,word.phonetic?{text:word.text,cut:activeCaret?.offset-word.range.startOffset}:null,word.literal),fits:false}:null;
+      const whole=rects.length>1?{word,request:wordRequest(word.text,cs,group,activeCaret&&!activeCaret.control&&activeCaret.node===node&&activeCaret.offset>word.range.startOffset&&activeCaret.offset<word.range.endOffset?activeCaret.offset-word.range.startOffset:null,null,word.literal),fits:false}:null;
       for(const [index,piece]of pieces.entries()){
         const fragment=piece.word,r=piece.rect;
         if(r.right<=clip.left||r.left>=clip.right||r.bottom<=clip.top||r.top>=clip.bottom){parkWord(fragment);continue;}
         const cut=activeCaret&&!activeCaret.control&&activeCaret.node===node&&activeCaret.offset>fragment.range.startOffset&&activeCaret.offset<fragment.range.endOffset?activeCaret.offset-fragment.range.startOffset:null;
-        const prepared=fragment.phonetic?{text:fragment.text,cut}:piece.prepared?{text:piece.prepared.text,cut:cut===null?null:normalizedCaret(word.text,activeCaret.offset-word.range.startOffset).cut-piece.prepared.start}:null;
+        const prepared=piece.prepared?{text:piece.prepared.text,cut:cut===null?null:normalizedCaret(word.text,activeCaret.offset-word.range.startOffset).cut-piece.prepared.start}:null;
         const request=wordRequest(fragment.text,cs,group,cut,prepared,fragment.literal);
         placements.push({word:fragment,whole,wholeCandidate:index===0?whole:null,request,t:request.templates[0],cs,el,rect:r,size:norinFontSize(cs),scope:group.element});owners.add(el);
       }
@@ -1758,7 +1761,7 @@ async function start(){
       if(removedRoots.size)schedule();
     }
   });
-  observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','style','hidden','placeholder','value','href','role','type','name','id','autocomplete','data-slate-type','data-norin-phonetic','src','alt','aria-label']});
+  observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','style','hidden','placeholder','value','href','role','type','name','id','autocomplete','data-slate-type','src','alt','aria-label']});
   new MutationObserver(()=>{for(const group of activeRecords)dirty(group);}).observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme','data-color-mode']});
   for(const event of ['input','change','focusin','focusout'])document.addEventListener(event,onInput,true);
   document.addEventListener('scroll',onScroll,{capture:true,passive:true});
