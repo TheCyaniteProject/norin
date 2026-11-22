@@ -22,7 +22,7 @@ OS2Version: 0
 OS2_WeightWidthSlopeOnly: 0
 OS2_UseTypoMetrics: 1
 CreationTime: 1794932251
-ModificationTime: 1795382277
+ModificationTime: 1795383001
 OS2TypoAscent: 0
 OS2TypoAOffset: 1
 OS2TypoDescent: 0
@@ -45,7 +45,7 @@ NameList: AGL For New Fonts
 DisplaySize: -48
 AntiAlias: 1
 FitToEm: 0
-WinInfo: 57250 25 10
+WinInfo: 57300 25 10
 BeginPrivate: 0
 EndPrivate
 Grid
@@ -128,7 +128,7 @@ StartChar: uniE002
 Encoding: 57346 57346 2
 Width: 0
 Flags: HW
-AnchorPoint: "vowel" -19 293 basechar 0
+AnchorPoint: "vowel" 1 293 basechar 0
 LayerCount: 2
 Fore
 SplineSet
@@ -152,7 +152,6 @@ SplineSet
  -154 224 -155 232 -176 232 c 0
  -204 232 -224 220 -235 220 c 0
 EndSplineSet
-Validated: 1
 EndChar
 
 StartChar: uniE003
@@ -160,7 +159,7 @@ Encoding: 57347 57347 3
 Width: -10
 VWidth: 1140
 Flags: HW
-AnchorPoint: "vowel" 54 165 mark 0
+AnchorPoint: "vowel" 24 165 mark 0
 LayerCount: 2
 Fore
 SplineSet
@@ -177,7 +176,6 @@ SplineSet
  45 250 56 279 56 299 c 0
  56 341 14 375 3 382 c 0
 EndSplineSet
-Validated: 1
 EndChar
 
 StartChar: uniE004
@@ -215,7 +213,7 @@ Encoding: 57351 57351 5
 Width: 1130
 VWidth: 1135
 Flags: HW
-AnchorPoint: "vowel" 363 200 mark 0
+AnchorPoint: "vowel" 293 200 mark 0
 LayerCount: 2
 Fore
 SplineSet
@@ -229,7 +227,6 @@ SplineSet
  375 426 l 2
  376 427 384 442 400 442 c 0
 EndSplineSet
-Validated: 1
 EndChar
 
 StartChar: uniE008
@@ -265,7 +262,7 @@ Encoding: 57355 57355 7
 Width: 1130
 VWidth: 1127
 Flags: HW
-AnchorPoint: "vowel" 346 286 mark 0
+AnchorPoint: "vowel" 326 286 mark 0
 LayerCount: 2
 Fore
 SplineSet
@@ -280,7 +277,6 @@ SplineSet
  372 378 359 391 346 391 c 0
  333 391 320 378 320 361 c 0
 EndSplineSet
-Validated: 1
 EndChar
 
 StartChar: uniE00C
@@ -317,7 +313,7 @@ Encoding: 57359 57359 9
 Width: 1128
 VWidth: 1129
 Flags: HW
-AnchorPoint: "vowel" 358 282 mark 0
+AnchorPoint: "vowel" 258 282 mark 0
 LayerCount: 2
 Fore
 SplineSet
@@ -341,7 +337,6 @@ SplineSet
  226 410 264 420 301 420 c 0
  374 420 381 378 381 361 c 0
 EndSplineSet
-Validated: 1
 EndChar
 
 StartChar: uniE010
@@ -381,8 +376,8 @@ StartChar: uniE013
 Encoding: 57363 57363 11
 Width: 1131
 VWidth: 1127
-Flags: HW
-AnchorPoint: "vowel" 342 301 mark 0
+Flags: HWO
+AnchorPoint: "vowel" 272 301 mark 0
 LayerCount: 2
 Fore
 SplineSet
@@ -400,7 +395,6 @@ SplineSet
  291 307 256 330 228 372 c 0
  224 377 222 382 222 387 c 0
 EndSplineSet
-Validated: 1
 EndChar
 
 StartChar: uniE014
@@ -1366,7 +1360,6 @@ SplineSet
  -244 265 -237 276 -225 276 c 0
  -219 276 -214 273 -201 273 c 0
 EndSplineSet
-Validated: 1
 EndChar
 
 StartChar: uniE00D
@@ -1401,7 +1394,7 @@ StartChar: uniE00E
 Encoding: 57358 57358 42
 Width: 0
 Flags: HW
-AnchorPoint: "vowel" -6 293 basechar 0
+AnchorPoint: "vowel" 4 293 basechar 0
 LayerCount: 2
 Fore
 SplineSet
@@ -1422,7 +1415,6 @@ SplineSet
  -180 271 -179 272 -179 272 c 1
  -193 286 -201 302 -201 317 c 0
 EndSplineSet
-Validated: 1
 EndChar
 
 StartChar: uniE011
@@ -2384,7 +2376,7 @@ EndChar
 StartChar: uniE040
 Encoding: 57408 57408 73
 Width: 0
-Flags: HWO
+Flags: HW
 AnchorPoint: "vowel" 24 293 basechar 0
 LayerCount: 2
 Fore
@@ -2403,6 +2395,7 @@ SplineSet
  -271 180 l 2
  -277 184 -280 191 -280 197 c 0
 EndSplineSet
+Validated: 1
 EndChar
 
 StartChar: uniE042
@@ -3110,7 +3103,7 @@ StartChar: uniE006
 Encoding: 57350 57350 97
 Width: 0
 Flags: HW
-AnchorPoint: "vowel" 24 293 basechar 0
+AnchorPoint: "vowel" 64 293 basechar 0
 LayerCount: 2
 Fore
 SplineSet
@@ -3130,7 +3123,6 @@ SplineSet
  -228 267 -215 289 -206 301 c 1
  -282 301 l 2
 EndSplineSet
-Validated: 1
 EndChar
 EndChars
 EndSplineFont

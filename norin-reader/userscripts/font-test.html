@@ -67,6 +67,11 @@
       <div id="blocks" class="block-grid"></div>
     </section>
 
+    <section aria-labelledby="accents-heading">
+      <div class="section-heading NORIN_EXCLUSION"><h2 id="accents-heading">Vowel accents between blocks</h2></div>
+      <div id="accent-blocks" class="block-grid"></div>
+    </section>
+
     <section aria-labelledby="mixed-heading">
       <div class="section-heading NORIN_EXCLUSION"><h2 id="mixed-heading">Norin, emotes, emoji & Japanese</h2></div>
       <div id="mixed-samples" class="scroll" tabindex="0" aria-label="Mixed text previews"></div>
@@ -122,6 +127,21 @@
       preview.textContent = repetitions(glyph);
       card.append(label, preview);
       document.getElementById('blocks').append(card);
+    }
+
+    for (const vowel of vowels) {
+      const text = `lgs${vowel}lgs`;
+      const card = document.createElement('div');
+      card.className = 'block-card';
+      const label = document.createElement('div');
+      label.className = 'block-label NORIN_EXCLUSION';
+      label.textContent = `${vowel.toUpperCase()} · ${text}`;
+      const preview = document.createElement('div');
+      preview.className = 'preview';
+      preview.setAttribute('data-norin-phonetic', '');
+      preview.textContent = text;
+      card.append(label, preview);
+      document.getElementById('accent-blocks').append(card);
     }
 
     for (const text of [
