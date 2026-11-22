@@ -22,7 +22,7 @@ OS2Version: 0
 OS2_WeightWidthSlopeOnly: 0
 OS2_UseTypoMetrics: 1
 CreationTime: 1794932251
-ModificationTime: 1795383001
+ModificationTime: 1795383064
 OS2TypoAscent: 0
 OS2TypoAOffset: 1
 OS2TypoDescent: 0
@@ -152,6 +152,7 @@ SplineSet
  -154 224 -155 232 -176 232 c 0
  -204 232 -224 220 -235 220 c 0
 EndSplineSet
+Validated: 1
 EndChar
 
 StartChar: uniE003
@@ -176,6 +177,7 @@ SplineSet
  45 250 56 279 56 299 c 0
  56 341 14 375 3 382 c 0
 EndSplineSet
+Validated: 1
 EndChar
 
 StartChar: uniE004
@@ -227,6 +229,7 @@ SplineSet
  375 426 l 2
  376 427 384 442 400 442 c 0
 EndSplineSet
+Validated: 1
 EndChar
 
 StartChar: uniE008
@@ -261,8 +264,8 @@ StartChar: uniE00B
 Encoding: 57355 57355 7
 Width: 1130
 VWidth: 1127
-Flags: HW
-AnchorPoint: "vowel" 326 286 mark 0
+Flags: HWO
+AnchorPoint: "vowel" 306 286 mark 0
 LayerCount: 2
 Fore
 SplineSet
@@ -337,6 +340,7 @@ SplineSet
  226 410 264 420 301 420 c 0
  374 420 381 378 381 361 c 0
 EndSplineSet
+Validated: 1
 EndChar
 
 StartChar: uniE010
@@ -376,7 +380,7 @@ StartChar: uniE013
 Encoding: 57363 57363 11
 Width: 1131
 VWidth: 1127
-Flags: HWO
+Flags: HW
 AnchorPoint: "vowel" 272 301 mark 0
 LayerCount: 2
 Fore
@@ -395,6 +399,7 @@ SplineSet
  291 307 256 330 228 372 c 0
  224 377 222 382 222 387 c 0
 EndSplineSet
+Validated: 1
 EndChar
 
 StartChar: uniE014
@@ -1360,6 +1365,7 @@ SplineSet
  -244 265 -237 276 -225 276 c 0
  -219 276 -214 273 -201 273 c 0
 EndSplineSet
+Validated: 1
 EndChar
 
 StartChar: uniE00D
@@ -1415,6 +1421,7 @@ SplineSet
  -180 271 -179 272 -179 272 c 1
  -193 286 -201 302 -201 317 c 0
 EndSplineSet
+Validated: 1
 EndChar
 
 StartChar: uniE011
@@ -3123,6 +3130,7 @@ SplineSet
  -228 267 -215 289 -206 301 c 1
  -282 301 l 2
 EndSplineSet
+Validated: 1
 EndChar
 EndChars
 EndSplineFont
