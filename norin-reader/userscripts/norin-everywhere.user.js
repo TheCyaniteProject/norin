@@ -22,7 +22,7 @@ const RENDER_AHEAD_PX=5000;
 const MIN_NORIN_FONT_SIZE=18;
 
 // Downward visual adjustment for Norin glyphs only, in em.
-const NORIN_GLYPH_OFFSET_EM=.1;
+const NORIN_GLYPH_OFFSET_EM=.25;
 
 // Font source (update @connect too if changing the host).
 const FONT_URL='https://raw.githubusercontent.com/TheCyaniteProject/norin/main/norin-font/Norin.ttf';
@@ -656,7 +656,7 @@ pageStyle.textContent=`[data-norin-custom-caret],[data-norin-custom-caret] *{car
 ::highlight(norin-original){color:transparent;text-shadow:none}
 [data-norin-input]{-webkit-text-fill-color:transparent!important;text-shadow:none!important}
 [data-norin-input]::placeholder{color:transparent!important;-webkit-text-fill-color:transparent!important}`;
-const skip='pre,code,kbd,samp,[data-slate-type="code-block"],[data-slate-type="code-line"],area,[data-norin-mount],script,style,noscript,svg,canvas,select,option,title,head,[data-norin-ignore],#norin-userscript-layer,input[name*="username" i],input[id*="username" i],textarea[name*="username" i],textarea[id*="username" i],[autocomplete~="username" i],[autocomplete~="current-password" i],[autocomplete~="new-password" i],input[type="password"]';
+const skip='pre,code,kbd,samp,[class*="hiddenVisually"],[data-slate-spacer],[data-slate-type="code-block"],[data-slate-type="code-line"],area,[data-norin-mount],script,style,noscript,svg,canvas,select,option,title,head,[data-norin-ignore],#norin-userscript-layer,input[name*="username" i],input[id*="username" i],textarea[name*="username" i],textarea[id*="username" i],[autocomplete~="username" i],[autocomplete~="current-password" i],[autocomplete~="new-password" i],input[type="password"]';
 function excludedClass(element,subtreeOnly=false){
   if(!element)return false;
   return CLASS_EXCLUSIONS.some(rule=>{
@@ -779,7 +779,11 @@ function emojiGapHasText(previous,current){
     const range=document.createRange();
     if(previous.kind==='emoji')range.setStartAfter(previous.emoji.element);else range.setStart(previous.word.range.endContainer,previous.word.range.endOffset);
     if(current.kind==='emoji')range.setEndBefore(current.emoji.element);else range.setEnd(current.word.range.startContainer,current.word.range.startOffset);
-    return !!range.toString().trim();
+    // Slate emoji wrappers contain caret spacers and screen-reader descriptions.
+    // Neither is visible content separating the emoji from the following word.
+    const fragment=range.cloneContents();
+    for(const marker of fragment.querySelectorAll('[data-slate-zero-width],[data-slate-spacer],[class*="hiddenVisually"],[data-norin-mount]'))marker.remove();
+    return !!fragment.textContent.replace(/[\s\u200b\u2060\ufeff]/gu,'');
   }catch(_){return true;}
 }
 function addNode(node,resetRanges=false,recover=false){
@@ -787,7 +791,7 @@ function addNode(node,resetRanges=false,recover=false){
   // Emoji carriers are already positioned as elements; do not overlay their text too.
   for(let parent=node.parentElement;parent;parent=parent.parentElement)if(emojiRecords.has(parent))return;
   let record=textNodes.get(node);
-  if(!record&&!/\S/u.test(node.data))return;
+  if(!record&&!node.data.replace(/[\s\u200b\u2060\ufeff]/gu,''))return;
   const group=recordFor(scopeFor(node.parentElement));
   if(!record){record={node,text:null,words:[],group};textNodes.set(node,record);group.nodes.add(record);}
   else if(record.group!==group){record.group.nodes.delete(record);dirty(record.group);record.group=group;group.nodes.add(record);}
@@ -1096,18 +1100,24 @@ function readCaret(){
   if(!editor||!selection?.isCollapsed||!selection.focusNode||!editor.contains(selection.focusNode))return null;
   let node=selection.focusNode,offset=selection.focusOffset;
   if(node.nodeType!==Node.TEXT_NODE){
-    const child=node.childNodes[offset]||node.childNodes[offset-1];if(!child)return null;
-    const walker=document.createTreeWalker(child,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement?.closest('[data-norin-mount]')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
-    if(child.nodeType===Node.TEXT_NODE){node=child;offset=selection.focusOffset<selection.focusNode.childNodes.length?0:node.length;}
-    else{const all=[];let text;while((text=walker.nextNode()))all.push(text);node=selection.focusOffset<selection.focusNode.childNodes.length?all[0]:all.at(-1);if(!node)return null;offset=selection.focusOffset<selection.focusNode.childNodes.length?0:node.length;}
+    const children=[...node.childNodes];
+    const texts=child=>{
+      if(child.nodeType===Node.TEXT_NODE)return [child];
+      if(child.matches?.('[data-norin-mount],[class*="hiddenVisually"]'))return [];
+      const walker=document.createTreeWalker(child,NodeFilter.SHOW_TEXT,{
+        acceptNode:n=>n.parentElement?.closest('[data-norin-mount],[class*="hiddenVisually"]')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT
+      });
+      const result=[];let text;while((text=walker.nextNode()))result.push(text);return result;
+    };
+    // Overlay hosts are appended to Slate's text spans. A selection at the
+    // source span's end must skip that host and still map to the source text.
+    const after=children.slice(offset).flatMap(texts),before=children.slice(0,offset).flatMap(texts);
+    node=after[0]||before.at(-1);if(!node)return null;offset=after.length?0:node.length;
   }
-  if(!node.data.replace(/[\u200b\ufeff]/g,'')){
-    const walker=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement?.closest('[data-norin-mount]')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT}),texts=[];let text;
-    while((text=walker.nextNode()))texts.push(text);
-    const index=texts.indexOf(node),previous=texts.slice(0,index).reverse().find(n=>n.data.replace(/[\u200b\ufeff]/g,'')),next=texts.slice(index+1).find(n=>n.data.replace(/[\u200b\ufeff]/g,''));
-    if(previous){node=previous;offset=node.length;}else if(next){node=next;offset=0;}else return null;
-  }
-  if(excludedSubtree(node.parentElement))return null;
+  // Preserve empty Slate leaves: their caret belongs after the preceding
+  // rendered emoji/text, not at the end of an earlier source text node.
+  const spacer=node.parentElement?.closest('[data-slate-spacer]');
+  if(excludedSubtree(node.parentElement)&&!spacer)return null;
   return {element:editor,node,offset,control:false};
 }
 function queueCaretUpdate(){
@@ -1137,12 +1147,47 @@ function caretBar(existing,appearance,height){
     animationName:appearance.steady?'none':'norin-caret-blink'});return bar;
 }
 function restartCaret(bar,signature){if(bar.dataset.position!==signature){bar.dataset.position=signature;for(const animation of bar.getAnimations())animation.currentTime=0;}}
+function caretGapWidth(text,owner){
+  const measure=document.createElement('canvas').getContext('2d');measure.font=styleOf(owner).font;
+  return measure.measureText(text.replace(/[\u200b\u2060\ufeff]/gu,'')).width;
+}
+function renderGapCaret(group,placements,caret,origins){
+  if(!group.element.contains(caret.node)||!origins.size)return;
+  const point=document.createRange();point.setStart(caret.node,caret.offset);point.collapse(true);
+  const candidates=[];
+  for(const p of placements)if(p.lineReady&&!p.nativePrefix){
+    const end=p.word.range.cloneRange();end.collapse(false);
+    candidates.push({end,rect:p.rect,x:p.x+p.naturalWidth,size:p.size,owner:p.el});
+  }
+  for(const emoji of group.emojis){
+    const placement=emojiPlacement(emoji);if(!placement)continue;
+    const end=document.createRange();end.setStartAfter(emoji.element);end.collapse(true);
+    candidates.push({end,rect:placement.rect,x:placement.rect.right+emoji.desired,size:placement.size});
+  }
+  // Choose the last rendered item before the real DOM selection.
+  const before=candidates.filter(candidate=>candidate.end.compareBoundaryPoints(Range.START_TO_START,point)<=0)
+    .sort((a,b)=>a.end.compareBoundaryPoints(Range.START_TO_START,b.end)).at(-1);
+  if(!before)return;
+  const gap=before.end.cloneRange();gap.setEnd(caret.node,caret.offset);
+  const fragment=gap.cloneContents();
+  for(const marker of fragment.querySelectorAll('[data-slate-zero-width],[data-slate-spacer],[class*="hiddenVisually"],[data-norin-mount]'))marker.remove();
+  if(fragment.querySelector('br,div,p,li,blockquote,h1,h2,h3,h4,h5,h6'))return;
+  const text=fragment.textContent.replace(/[\u200b\u2060\ufeff]/gu,'');
+  if(text.trim()||/[\r\n]/.test(text))return;
+  const owner=before.owner||origins.keys().next().value,origin=origins.get(owner);
+  const x=before.x+caretGapWidth(text,owner),height=Math.max(12,before.size);
+  const top=(before.rect.top+before.rect.bottom-height)/2;
+  const bar=group.caretElement=caretBar(group.caretElement,caretAppearance(owner),height);
+  if(bar.parentNode!==origin.mount.root)origin.mount.root.append(bar);
+  setStyles(bar,{display:'block',left:`${x-origin.rect.left}px`,top:`${top-origin.rect.top}px`});
+  restartCaret(bar,`${caret.offset}:${x}:${top}`);group.caretState={...caret,bar};
+}
 function renderTextCaret(group,placements,caret,origins){
   group.caretState=null;
   if(group.caretElement)setStyles(group.caretElement,{display:'none'});
   if(!caret||caret.control)return;
   const words=placements.filter(p=>p.word.range.startContainer===caret.node&&p.lineReady&&!p.nativePrefix).sort((a,b)=>a.word.range.startOffset-b.word.range.startOffset);
-  if(!words.length)return;
+  if(!words.length){renderGapCaret(group,placements,caret,origins);return;}
   let selected=words.find(p=>caret.offset>=p.word.range.startOffset&&caret.offset<=p.word.range.endOffset),x;
   if(selected){
     const cut=caret.offset-selected.word.range.startOffset;
@@ -1152,8 +1197,8 @@ function renderTextCaret(group,placements,caret,origins){
     const from=before?.word.range.endOffset??0,to=after?.word.range.startOffset??caret.node.length;
     if(caret.node.data.slice(from,to).trim())return;
     selected=after||before;if(!selected)return;
-    const left=before?before.x+before.naturalWidth:after.x-(after.word.range.startOffset-caret.offset)*selected.size*.35;
-    const right=after?after.x:left+(caret.offset-from)*selected.size*.35;
+    const left=before?before.x+before.naturalWidth:after.x-caretGapWidth(caret.node.data.slice(caret.offset,after.word.range.startOffset),selected.el);
+    const right=after?after.x:left+caretGapWidth(caret.node.data.slice(from,caret.offset),selected.el);
     x=before&&after?left+(right-left)*(caret.offset-from)/Math.max(1,to-from):before?right:left;
   }
   const {mount,rect:origin}=origins.get(selected.el),height=Math.max(12,selected.size),top=(selected.rect.top+selected.rect.bottom-height)/2;
@@ -1173,7 +1218,7 @@ function tokenize(record,protectedRanges=[]){
   if(record.text===node.data&&record.codeKey===codeKey)return;record.codeKey=codeKey;
   releaseWords(record,true);record.text=node.data;record.words=[];
   for(const match of node.data.matchAll(/\S+/gu)){
-    if(literalToken(match[0])||protectedRanges.some(s=>match.index<s.end&&match.index+match[0].length>s.start))continue;
+    if(!match[0].replace(/[\u200b\u2060\ufeff]/gu,'')||literalToken(match[0])||protectedRanges.some(s=>match.index<s.end&&match.index+match[0].length>s.start))continue;
     const range=document.createRange();range.setStart(node,match.index);range.setEnd(node,match.index+match[0].length);
     record.words.push({text:match[0],literal:excludedWord(match[0],node.data,match.index)||!/[a-z]/i.test(match[0]),range,box:null,glyph:null,template:null});
   }
@@ -1278,7 +1323,18 @@ function processText(group){
   finishTemplates(placements.flatMap(p=>[...p.request.templates,...(p.wholeCandidate?.request.templates||[])]));
   for(const placement of placements){placement.t=resolveWord(placement.request);if(placement.wholeCandidate)placement.wholeCandidate.t=resolveWord(placement.wholeCandidate.request);}
   const lines=new Map();
-  for(const p of placements){const key=Math.round(p.rect.top/3)*3;if(!lines.has(key))lines.set(key,[]);lines.get(key).push(p);}
+  // Inline wrappers can have different font metrics on the same visual line
+  // (notably around Discord emoji). Top-coordinate buckets split those runs.
+  for(const p of [...placements].sort((a,b)=>a.rect.top-b.rect.top)){
+    let selected=null,distance=Infinity;
+    for(const line of lines.values()){
+      const anchor=line[0].rect,minHeight=Math.min(anchor.height,p.rect.height);
+      const overlap=Math.min(anchor.bottom,p.rect.bottom)-Math.max(anchor.top,p.rect.top);
+      const delta=Math.abs((anchor.top+anchor.bottom-p.rect.top-p.rect.bottom)/2);
+      if(overlap>=minHeight*.6&&delta<=minHeight*.5&&delta<distance){selected=line;distance=delta;}
+    }
+    if(selected)selected.push(p);else lines.set(lines.size,[p]);
+  }
   for(const emoji of [...group.emojis]){
     emoji.desired=0;
     const placement=emojiPlacement(emoji);if(!placement)continue;
@@ -1288,7 +1344,7 @@ function processText(group){
       const overlap=Math.min(bottom,placement.rect.bottom)-Math.max(top,placement.rect.top),delta=Math.abs((top+bottom-placement.rect.top-placement.rect.bottom)/2);
       if(overlap>0&&delta<distance){selected=line;distance=delta;}
     }
-    if(selected)selected.push(placement);
+    if(selected){selected.push(placement);owners.add(placement.emoji.element);}
   }
   for(const originalLine of [...lines.values()].sort((a,b)=>a[0].rect.top-b[0].rect.top)){
     const line=originalLine.filter(p=>!p.whole?.fits);
